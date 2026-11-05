@@ -19,6 +19,9 @@
   <!-- MapLibre GL CSS -->
   <link rel="stylesheet" href="/src/maplibre/maplibre-gl.css" />
 
+  <!-- Flutterwave Inline Checkout SDK (Production B2B Global Card & Apple Pay) -->
+  <script src="https://checkout.flutterwave.com/v3.js"></script>
+
   <script>
     tailwind.config = {
       darkMode: 'class',
@@ -1004,23 +1007,31 @@
           <!-- TAB 1: API KEYS & SUBSCRIPTIONS -->
           <div id="tab-content-keys" class="space-y-4">
             
-            <!-- Commercial Licensing Header Notice -->
+            <!-- Commercial Licensing Header Notice with Live Currency Selector -->
             <div class="p-3.5 rounded-lg bg-obsidian-850 border border-cyan-500/30 flex flex-col md:flex-row md:items-center justify-between gap-3">
               <div class="flex items-start space-x-3">
                 <span class="w-3 h-3 rounded-full bg-cyan-400 animate-pulse mt-1"></span>
                 <div>
                   <div class="flex items-center space-x-2">
                     <span class="text-xs font-bold text-white uppercase tracking-wider font-mono">COMMERCIAL B2B ENTERPRISE LICENSING</span>
-                    <span class="px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-500 text-[10px] font-bold">ZERO FREE TIER</span>
+                    <span class="px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-500 text-[10px] font-bold font-mono">ZERO FREE TIER</span>
                   </div>
-                  <p class="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
-                    SkyGrid Intelligence operates on strict commercial paid licensing for enterprise cargo fleets, hub operators, and sovereign airspace regulators. Unlicensed external requests return <code class="text-amber-400 font-mono font-bold">HTTP 402 Payment Required</code>.
+                  <p class="text-[11px] text-slate-400 mt-0.5 leading-relaxed font-mono">
+                    Aviation contracts are benchmarked in USD. Multi-tenant external API requests require a verified paid license (<code class="text-amber-400 font-bold">is_paid_enterprise=True</code>). Unlicensed calls return <code class="text-amber-400 font-bold">402 Payment Required</code>.
                   </p>
                 </div>
               </div>
-              <div class="shrink-0 font-mono text-right text-[11px]">
-                <div class="text-slate-500">GATEWAY SECURITY</div>
-                <div class="text-emerald-400 font-bold">SHA-256 ENFORCED</div>
+
+              <!-- Multi-Currency Switcher Pills -->
+              <div class="shrink-0 flex flex-col sm:items-end gap-1 font-mono">
+                <div class="text-[10px] text-slate-400 tracking-wider uppercase font-semibold">SELECT BILLING CURRENCY:</div>
+                <div class="inline-flex rounded-md p-0.5 bg-obsidian-950 border border-slate-700 text-xs" id="currency-toggle-group">
+                  <button type="button" onclick="window.setBillingCurrency('USD')" id="curr-btn-USD" class="px-2 py-1 text-[11px] rounded bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/50 shadow-sm transition-all">USD ($)</button>
+                  <button type="button" onclick="window.setBillingCurrency('AED')" id="curr-btn-AED" class="px-2 py-1 text-[11px] rounded text-slate-400 hover:text-white transition-all">AED (د.إ)</button>
+                  <button type="button" onclick="window.setBillingCurrency('EUR')" id="curr-btn-EUR" class="px-2 py-1 text-[11px] rounded text-slate-400 hover:text-white transition-all">EUR (€)</button>
+                  <button type="button" onclick="window.setBillingCurrency('GBP')" id="curr-btn-GBP" class="px-2 py-1 text-[11px] rounded text-slate-400 hover:text-white transition-all">GBP (£)</button>
+                  <button type="button" onclick="window.setBillingCurrency('NGN')" id="curr-btn-NGN" class="px-2 py-1 text-[11px] rounded text-slate-400 hover:text-white transition-all">NGN (₦)</button>
+                </div>
               </div>
             </div>
 
@@ -1028,7 +1039,7 @@
             <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
               
               <!-- Tier 1: Regional Hub License -->
-              <div class="obsidian-card rounded-lg p-3.5 border border-slate-700/80 hover:border-cyan-500/40 transition-colors flex flex-col justify-between">
+              <div id="card-tier-regional" class="obsidian-card rounded-lg p-3.5 border border-slate-700/80 hover:border-cyan-500/40 transition-colors flex flex-col justify-between">
                 <div>
                   <div class="flex items-center justify-between mb-1.5">
                     <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-semibold uppercase">Regional Tier</span>
@@ -1036,8 +1047,8 @@
                   </div>
                   <h4 class="text-sm font-bold text-white tracking-wide">Regional Hub License</h4>
                   <div class="mt-2 mb-3 flex items-baseline">
-                    <span class="text-2xl font-extrabold text-cyan-300 font-telemetry">$2,500</span>
-                    <span class="text-xs text-slate-400 ml-1 font-mono">/ month</span>
+                    <span id="tier-price-regional" class="text-2xl font-extrabold text-cyan-300 font-telemetry">$2,500</span>
+                    <span id="tier-sub-regional" class="text-xs text-slate-400 ml-1 font-mono">/ month</span>
                   </div>
                   <ul class="text-[11px] text-slate-300 space-y-1.5 font-sans mb-3">
                     <li class="flex items-center gap-1.5">
@@ -1054,13 +1065,13 @@
                     </li>
                   </ul>
                 </div>
-                <button onclick="window.selectLicensingTier('regional_hub')" class="w-full py-1.5 rounded bg-obsidian-800 hover:bg-cyan-950 border border-slate-700 hover:border-cyan-500 text-cyan-300 font-mono text-xs font-bold transition-all">
-                  SELECT REGIONAL ($2,500/MO)
+                <button type="button" onclick="window.selectLicensingTier('regional_hub')" id="tier-btn-regional" class="w-full py-1.5 rounded bg-obsidian-800 hover:bg-cyan-950 border border-slate-700 hover:border-cyan-500 text-cyan-300 font-mono text-xs font-bold transition-all">
+                  SELECT REGIONAL
                 </button>
               </div>
 
               <!-- Tier 2: Global Cargo Carrier License (Featured) -->
-              <div class="obsidian-card rounded-lg p-3.5 border-2 border-cyan-400/60 shadow-glow-cyan bg-obsidian-850/90 flex flex-col justify-between relative overflow-hidden">
+              <div id="card-tier-carrier" class="obsidian-card rounded-lg p-3.5 border-2 border-cyan-400/60 shadow-glow-cyan bg-obsidian-850/90 flex flex-col justify-between relative overflow-hidden">
                 <div class="absolute -right-12 top-4 rotate-45 bg-cyan-500 text-obsidian-950 text-[9px] font-mono font-extrabold px-10 py-0.5 shadow">
                   MOST POPULAR
                 </div>
@@ -1071,8 +1082,8 @@
                   </div>
                   <h4 class="text-sm font-bold text-white tracking-wide">Global Cargo Carrier License</h4>
                   <div class="mt-2 mb-3 flex items-baseline">
-                    <span class="text-2xl font-extrabold text-cyan-300 font-telemetry">$7,500</span>
-                    <span class="text-xs text-slate-400 ml-1 font-mono">/ month</span>
+                    <span id="tier-price-carrier" class="text-2xl font-extrabold text-cyan-300 font-telemetry">$7,500</span>
+                    <span id="tier-sub-carrier" class="text-xs text-slate-400 ml-1 font-mono">/ month</span>
                   </div>
                   <ul class="text-[11px] text-slate-300 space-y-1.5 font-sans mb-3">
                     <li class="flex items-center gap-1.5">
@@ -1089,13 +1100,13 @@
                     </li>
                   </ul>
                 </div>
-                <button onclick="window.selectLicensingTier('global_cargo_carrier')" class="w-full py-1.5 rounded bg-cyan-500 hover:bg-cyan-400 text-obsidian-950 font-mono text-xs font-extrabold transition-all shadow-glow-cyan">
-                  SELECT CARRIER ($7,500/MO)
+                <button type="button" onclick="window.selectLicensingTier('global_cargo_carrier')" id="tier-btn-carrier" class="w-full py-1.5 rounded bg-cyan-500 hover:bg-cyan-400 text-obsidian-950 font-mono text-xs font-extrabold transition-all shadow-glow-cyan">
+                  SELECT CARRIER
                 </button>
               </div>
 
               <!-- Tier 3: Sovereign Airspace & Defense License -->
-              <div class="obsidian-card rounded-lg p-3.5 border border-slate-700/80 hover:border-emerald-500/40 transition-colors flex flex-col justify-between">
+              <div id="card-tier-sovereign" class="obsidian-card rounded-lg p-3.5 border border-slate-700/80 hover:border-emerald-500/40 transition-colors flex flex-col justify-between">
                 <div>
                   <div class="flex items-center justify-between mb-1.5">
                     <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800 font-semibold uppercase">Defense & Civil</span>
@@ -1103,8 +1114,8 @@
                   </div>
                   <h4 class="text-sm font-bold text-white tracking-wide">Sovereign Airspace & Defense</h4>
                   <div class="mt-2 mb-3 flex items-baseline">
-                    <span class="text-2xl font-extrabold text-emerald-400 font-telemetry">CUSTOM</span>
-                    <span class="text-xs text-slate-400 ml-1 font-mono">/ Annual Contract</span>
+                    <span id="tier-price-sovereign" class="text-2xl font-extrabold text-emerald-400 font-telemetry">$25,000</span>
+                    <span id="tier-sub-sovereign" class="text-xs text-slate-400 ml-1 font-mono">/ month (Annual Contract)</span>
                   </div>
                   <ul class="text-[11px] text-slate-300 space-y-1.5 font-sans mb-3">
                     <li class="flex items-center gap-1.5">
@@ -1121,58 +1132,174 @@
                     </li>
                   </ul>
                 </div>
-                <button onclick="window.selectLicensingTier('sovereign_defense')" class="w-full py-1.5 rounded bg-obsidian-800 hover:bg-emerald-950 border border-slate-700 hover:border-emerald-500 text-emerald-400 font-mono text-xs font-bold transition-all">
-                  SELECT SOVEREIGN (ANNUAL)
+                <button type="button" onclick="window.selectLicensingTier('sovereign_defense')" id="tier-btn-sovereign" class="w-full py-1.5 rounded bg-obsidian-800 hover:bg-emerald-950 border border-slate-700 hover:border-emerald-500 text-emerald-400 font-mono text-xs font-bold transition-all">
+                  SELECT SOVEREIGN
                 </button>
               </div>
 
             </div>
 
-            <!-- Generate New Partner Key Form -->
-            <div class="p-4 rounded-lg bg-obsidian-850 border border-slate-800">
-              <h3 class="text-xs font-bold text-cyan-300 uppercase tracking-wider mb-2 flex items-center gap-1.5 font-mono">
-                <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
-                Provision New Commercial Partner x-api-key Token
-              </h3>
-              <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
-                <div class="sm:col-span-5">
-                  <label class="text-[11px] text-slate-400 block mb-1">Partner / Client Organization Name</label>
-                  <input type="text" id="new-key-name" placeholder="e.g. Emirates SkyCargo Operations" class="w-full bg-obsidian-900 border border-slate-700 rounded px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 font-mono">
+            <!-- B2B ENTERPRISE CHECKOUT & INVOICING TERMINAL -->
+            <div class="p-4 rounded-lg bg-obsidian-850 border border-slate-800 space-y-3">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-2 border-b border-slate-800/80 gap-2 font-mono">
+                <div class="flex items-center space-x-2">
+                  <span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span>
+                  <h3 class="text-xs font-bold text-cyan-300 uppercase tracking-wider">
+                    SECURE B2B ENTERPRISE CHECKOUT & TOKEN ACTIVATION
+                  </h3>
                 </div>
-                <div class="sm:col-span-4">
-                  <label class="text-[11px] text-slate-400 block mb-1">Commercial B2B License Tier</label>
-                  <select id="new-key-tier" class="w-full bg-obsidian-900 border border-slate-700 rounded px-2.5 py-1.5 text-xs text-cyan-300 focus:outline-none focus:border-cyan-400 font-mono">
-                    <option value="regional_hub">Regional Hub License ($2,500/mo - 50k calls/day)</option>
-                    <option value="global_cargo_carrier" selected>Global Cargo Carrier License ($7,500/mo - 500k calls/day)</option>
-                    <option value="sovereign_defense">Sovereign Airspace & Defense (Custom Annual - Unlimited)</option>
-                  </select>
-                </div>
-                <div class="sm:col-span-3">
-                  <button onclick="window.generatePartnerApiKey()" class="w-full px-3 py-1.5 rounded bg-cyan-500 hover:bg-cyan-400 text-obsidian-950 font-bold text-xs shadow-glow-cyan transition-colors font-mono">
-                    ACTIVATE LICENSE KEY
-                  </button>
+                <div class="flex items-center space-x-2 text-[11px]">
+                  <span class="text-slate-400">SETTLEMENT RAIL:</span>
+                  <div class="inline-flex rounded p-0.5 bg-obsidian-950 border border-slate-700">
+                    <button type="button" id="rail-btn-card" onclick="window.selectPaymentRail('card')" class="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
+                      Card / Apple Pay
+                    </button>
+                    <button type="button" id="rail-btn-wire" onclick="window.selectPaymentRail('wire')" class="px-2 py-0.5 rounded text-[10px] font-bold text-slate-400 hover:text-white">
+                      SWIFT / Wire Invoice
+                    </button>
+                  </div>
                 </div>
               </div>
 
+              <!-- Checkout Input Fields -->
+              <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end font-mono">
+                <div class="sm:col-span-4">
+                  <label class="text-[11px] text-slate-400 block mb-1">Partner Organization / Airline Name</label>
+                  <input type="text" id="checkout-org-name" value="Emirates SkyCargo Operations" placeholder="e.g. Emirates SkyCargo Operations" class="w-full bg-obsidian-900 border border-slate-700 rounded px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400">
+                </div>
+                <div class="sm:col-span-4">
+                  <label class="text-[11px] text-slate-400 block mb-1">Accounts Payable / Billing Email</label>
+                  <input type="email" id="checkout-billing-email" value="billing@skycargo.emirates.ae" placeholder="e.g. procurement@carrier.com" class="w-full bg-obsidian-900 border border-slate-700 rounded px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400">
+                </div>
+                <div class="sm:col-span-4">
+                  <label class="text-[11px] text-slate-400 block mb-1">Commercial B2B Tier</label>
+                  <select id="checkout-tier" onchange="window.selectLicensingTier(this.value)" class="w-full bg-obsidian-900 border border-slate-700 rounded px-2.5 py-1.5 text-xs text-cyan-300 focus:outline-none focus:border-cyan-400">
+                    <option value="regional_hub">Regional Hub License ($2,500/mo)</option>
+                    <option value="global_cargo_carrier" selected>Global Cargo Carrier License ($7,500/mo)</option>
+                    <option value="sovereign_defense">Sovereign Airspace & Defense ($25,000/mo)</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Initiate Checkout Action Button -->
+              <div class="pt-1 flex flex-col sm:flex-row items-center justify-between gap-3 font-mono">
+                <div class="text-[11px] text-slate-400">
+                  Total Due: <span id="checkout-total-quote" class="text-cyan-300 font-bold text-sm">$7,500.00 USD</span>
+                  <span id="checkout-currency-note" class="text-slate-500 text-[10px] ml-1">(Converted automatically via selected gateway)</span>
+                </div>
+                <button type="button" id="btn-initiate-checkout" onclick="window.initiateEnterpriseCheckout()" class="w-full sm:w-auto px-5 py-2 rounded bg-gradient-to-r from-cyan-500 to-cyan-400 hover:from-cyan-400 hover:to-cyan-300 text-obsidian-950 font-extrabold text-xs shadow-glow-cyan transition-all flex items-center justify-center gap-2">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                  </svg>
+                  INITIALIZE SECURE ENTERPRISE CHECKOUT
+                </button>
+              </div>
+
+              <!-- ORDER DRAWER & SETTLEMENT PANEL (Appears upon initiating checkout) -->
+              <div id="checkout-order-drawer" class="hidden mt-3 p-4 rounded-lg bg-obsidian-900 border border-cyan-500/40 font-mono space-y-3 animate-in fade-in duration-200">
+                <div class="flex flex-wrap items-center justify-between pb-2 border-b border-slate-800 gap-2">
+                  <div class="flex items-center space-x-2">
+                    <span class="text-xs font-bold text-white">ORDER SUMMARY:</span>
+                    <span id="order-ref-display" class="px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-700 text-xs font-bold">ORD-SKY-XXXXXX</span>
+                  </div>
+                  <div class="flex items-center space-x-3">
+                    <span class="text-xs text-slate-400">AMOUNT:</span>
+                    <span id="order-amount-display" class="text-white font-extrabold text-sm font-telemetry">$7,500.00 USD</span>
+                    <span id="order-status-badge" class="px-2 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-600 text-[10px] font-bold">AWAITING PAYMENT</span>
+                  </div>
+                </div>
+
+                <!-- CARD SETTLEMENT VIEW (Flutterwave / Paystack) -->
+                <div id="drawer-card-section" class="space-y-3">
+                  <div class="p-3 rounded bg-obsidian-950 border border-slate-800 text-xs text-slate-300">
+                    <div class="flex items-center justify-between mb-1">
+                      <span class="font-bold text-white flex items-center gap-1.5">
+                        <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <rect x="2" y="5" width="20" height="14" rx="2"/>
+                          <line x1="2" y1="10" x2="22" y2="10"/>
+                        </svg>
+                        Instant Online Card / Apple Pay Settlement (Flutterwave Gateway)
+                      </span>
+                      <span class="text-emerald-400 font-bold text-[10px]">256-BIT ENCRYPTION</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 leading-relaxed">
+                      Accepts international Visa, Mastercard, American Express, and Apple Pay. Payouts automatically settle into the founder's USD treasury account.
+                    </p>
+                  </div>
+                  <div class="flex flex-wrap items-center gap-2">
+                    <button type="button" onclick="window.completeEnterpriseOrder()" class="flex-1 sm:flex-none px-4 py-2 rounded bg-cyan-500 hover:bg-cyan-400 text-obsidian-950 font-bold text-xs shadow-glow-cyan transition-all flex items-center justify-center gap-2">
+                      <span>⚡ COMPLETE & VERIFY PAYMENT (ACTIVATE KEY)</span>
+                    </button>
+                    <button type="button" onclick="window.downloadCurrentInvoice()" class="px-3 py-2 rounded bg-obsidian-800 hover:bg-obsidian-750 border border-slate-700 text-cyan-300 text-xs font-semibold">
+                      ⬇ Download Proforma Receipt
+                    </button>
+                  </div>
+                </div>
+
+                <!-- SWIFT / WIRE SETTLEMENT VIEW (Raenest / Grey USD Corporate Virtual Account) -->
+                <div id="drawer-wire-section" class="hidden space-y-3">
+                  <div class="p-3 rounded bg-obsidian-950 border border-slate-800 text-xs space-y-2">
+                    <div class="flex items-center justify-between border-b border-slate-800/80 pb-1.5">
+                      <span class="font-bold text-cyan-300 uppercase tracking-wider text-[11px]">Corporate Wire Coordinates (Raenest USD Virtual Account)</span>
+                      <span class="text-emerald-400 font-bold text-[10px]">ICAO / B2B STANDARD</span>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 text-[11px]">
+                      <div>
+                        <span class="text-slate-500 block">Beneficiary Name</span>
+                        <span class="text-white font-bold">Akanno Tech Labs Ltd</span>
+                      </div>
+                      <div>
+                        <span class="text-slate-500 block">Bank Name</span>
+                        <span class="text-white font-bold">Lead Bank (Raenest Corp)</span>
+                      </div>
+                      <div>
+                        <span class="text-slate-500 block">Routing Number (ACH / Wire)</span>
+                        <span class="text-cyan-300 font-bold select-all">101000695</span>
+                      </div>
+                      <div>
+                        <span class="text-slate-500 block">Account Number</span>
+                        <span class="text-cyan-300 font-bold select-all">884920194821</span>
+                      </div>
+                    </div>
+                    <div class="pt-1 flex items-center justify-between text-[10px] text-slate-400">
+                      <span>SWIFT / BIC: <code class="text-white font-bold">LEADUS33XXX</code></span>
+                      <span>Payment Reference: <code id="wire-memo-ref" class="text-cyan-400 font-bold">ORD-SKY-XXXXXX</code></span>
+                    </div>
+                  </div>
+                  <div class="flex flex-wrap items-center gap-2">
+                    <button type="button" onclick="window.downloadCurrentInvoice()" class="flex-1 sm:flex-none px-4 py-2 rounded bg-cyan-500 hover:bg-cyan-400 text-obsidian-950 font-bold text-xs shadow-glow-cyan transition-all flex items-center justify-center gap-2">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                      </svg>
+                      DOWNLOAD OFFICIAL PROFORMA INVOICE (PDF)
+                    </button>
+                    <button type="button" onclick="window.completeEnterpriseOrder()" class="px-4 py-2 rounded bg-obsidian-800 hover:bg-obsidian-750 border border-slate-700 text-emerald-400 text-xs font-bold">
+                      ✓ CONFIRM WIRE ISSUANCE & UNLOCK TOKEN
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+
               <!-- Newly generated key copy banner -->
-              <div id="new-key-banner" class="hidden mt-3 p-3.5 rounded bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 text-xs">
-                <div class="flex items-center justify-between mb-1 font-bold font-mono">
+              <div id="new-key-banner" class="hidden mt-3 p-3.5 rounded bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 text-xs font-mono animate-in fade-in duration-200">
+                <div class="flex items-center justify-between mb-1 font-bold">
                   <span class="flex items-center gap-1.5">
-                    <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
                     COMMERCIAL ENTERPRISE LICENSE ACTIVATED
                   </span>
-                  <span id="new-key-license-id" class="text-[10px] text-emerald-400 font-mono font-bold">LIC-ID</span>
+                  <span id="new-key-license-id" class="text-[10px] text-emerald-400 font-bold">LIC-ID</span>
                 </div>
-                <div class="text-[11px] text-emerald-200/80 mb-2 font-mono">
+                <div class="text-[11px] text-emerald-200/80 mb-2">
                   Monthly Billing: <span id="new-key-fee" class="font-bold text-white">$7,500/mo</span> | SLA: <span id="new-key-sla" class="font-bold text-emerald-300">99.99%</span> | Status: <span class="text-emerald-400 font-bold">is_paid_enterprise=True</span>
                 </div>
-                <div class="flex items-center justify-between bg-obsidian-950 p-2.5 rounded border border-emerald-800/80 font-mono text-white text-xs">
+                <div class="flex items-center justify-between bg-obsidian-950 p-2.5 rounded border border-emerald-800/80 text-white text-xs">
                   <span id="new-key-raw-text" class="select-all text-cyan-300 break-all font-bold">sk_live_...</span>
-                  <button onclick="window.copyRawApiKey()" class="ml-2 px-3 py-1 rounded bg-cyan-500 text-obsidian-950 font-bold hover:bg-cyan-400 text-[11px]">
+                  <button type="button" onclick="window.copyRawApiKey()" class="ml-2 px-3 py-1 rounded bg-cyan-500 text-obsidian-950 font-bold hover:bg-cyan-400 text-[11px]">
                     COPY KEY
                   </button>
                 </div>
-                <div class="text-[10px] text-slate-400 mt-1 font-mono italic">
+                <div class="text-[10px] text-slate-400 mt-1 italic">
                   * Store this x-api-key token now. For security reasons, the raw cryptographic token will never be displayed again.
                 </div>
               </div>

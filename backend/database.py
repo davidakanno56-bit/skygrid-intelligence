@@ -171,6 +171,27 @@ class DatabaseManager:
             );
             """)
 
+            # 7. Enterprise Billing & Payment Orders (Flutterwave, Paystack, Raenest Wire)
+            cur.execute(f"""
+            CREATE TABLE IF NOT EXISTS billing_orders (
+                id {id_type},
+                order_ref VARCHAR(64) UNIQUE NOT NULL,
+                organization_name VARCHAR(128) NOT NULL,
+                billing_email VARCHAR(128) NOT NULL,
+                license_type VARCHAR(64) NOT NULL,
+                amount_usd REAL NOT NULL,
+                amount_charged REAL NOT NULL,
+                currency VARCHAR(8) NOT NULL,
+                payment_gateway VARCHAR(32) NOT NULL,
+                payment_method VARCHAR(32) NOT NULL,
+                payment_status VARCHAR(32) DEFAULT 'PENDING',
+                gateway_reference VARCHAR(128),
+                api_key_id INTEGER,
+                created_at {ts_type},
+                paid_at {ts_type}
+            );
+            """)
+
             # Migration guard for commercial license columns
             for col, col_def in [
                 ("is_paid_enterprise", "INTEGER DEFAULT 1"),

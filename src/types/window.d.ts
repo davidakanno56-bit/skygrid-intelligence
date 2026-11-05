@@ -33,6 +33,12 @@ declare global {
     refreshAuditLogs: () => void;
     saveIngestionApiKeys: () => void;
     saveDatabaseConfig: () => void;
+    setBillingCurrency: (currency: string) => void;
+    selectPaymentRail: (rail: 'card' | 'wire') => void;
+    initiateEnterpriseCheckout: () => void;
+    completeEnterpriseOrder: () => void;
+    downloadCurrentInvoice: () => void;
+    FlutterwaveCheckout?: (config: unknown) => void;
   }
 }
 

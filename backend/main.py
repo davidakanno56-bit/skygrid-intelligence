@@ -20,6 +20,9 @@ from backend.auth import (
 from backend.reports import (
     generate_csv_compliance_report, generate_pdf_compliance_report
 )
+from backend.billing import (
+    initiate_order, verify_and_activate_order, generate_proforma_invoice_pdf, CURRENCY_RATES
+)
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -62,6 +65,17 @@ class UpdateApiKeysRequest(BaseModel):
 
 class UpdateDbConfigRequest(BaseModel):
     database_url: str
+
+class InitiateCheckoutRequest(BaseModel):
+    organization_name: str
+    billing_email: str
+    license_type: str = "global_cargo_carrier"
+    currency: str = "USD"
+    payment_method: str = "card" # "card" or "wire"
+
+class CompleteCheckoutRequest(BaseModel):
+    order_ref: str
+    gateway_reference: Optional[str] = None
 
 # ==================== LIFECYCLE EVENTS ====================
 
@@ -240,6 +254,82 @@ def get_keys():
 def delete_key(key_id: int):
     revoke_api_key(key_id)
     return {"status": "revoked", "key_id": key_id}
+
+# ==================== COMMERCIAL BILLING & PAYMENT GATEWAY ====================
+
+@app.get("/api/v1/billing/config", summary="Get payment gateway and currency settlement configuration")
+def get_billing_config():
+    return {
+        "payment_gateway": settings.PAYMENT_GATEWAY,
+        "supported_currencies": CURRENCY_RATES,
+        "flutterwave_public_key": settings.FLUTTERWAVE_PUBLIC_KEY,
+        "paystack_public_key": settings.PAYSTACK_PUBLIC_KEY,
+        "raenest_wire_settlement": {
+            "beneficiary_name": settings.RAENEST_BENEFICIARY_NAME,
+            "bank_name": settings.RAENEST_USD_BANK_NAME,
+            "swift_bic": settings.RAENEST_SWIFT_BIC
+        }
+    }
+
+@app.post("/api/v1/billing/checkout/initiate", summary="Initiate commercial checkout order with currency conversion")
+def initiate_checkout(req: InitiateCheckoutRequest):
+    order = initiate_order(
+        organization_name=req.organization_name,
+        billing_email=req.billing_email,
+        license_type=req.license_type,
+        currency=req.currency,
+        payment_method=req.payment_method
+    )
+    return order
+
+@app.post("/api/v1/billing/checkout/complete", summary="Verify payment and issue paid commercial X-API-Key")
+def complete_checkout(req: CompleteCheckoutRequest):
+    result = verify_and_activate_order(
+        order_ref=req.order_ref,
+        gateway_ref=req.gateway_reference
+    )
+    return result
+
+@app.get("/api/v1/billing/invoice/{order_ref}", summary="Download official Proforma Invoice PDF")
+def download_invoice(order_ref: str):
+    pdf_bytes = generate_proforma_invoice_pdf(order_ref)
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename=Proforma_Invoice_{order_ref}.pdf"
+        }
+    )
+
+@app.post("/api/v1/billing/webhook/flutterwave", summary="Inbound Flutterwave payment webhook")
+async def flutterwave_webhook(request: Request):
+    body_bytes = await request.body()
+    try:
+        data = json.loads(body_bytes.decode())
+        event = data.get("event")
+        tx_data = data.get("data", {})
+        tx_ref = tx_data.get("tx_ref")
+        if event == "charge.completed" and tx_data.get("status") == "successful" and tx_ref:
+            verify_and_activate_order(tx_ref, gateway_ref=str(tx_data.get("id")))
+            return {"status": "verified"}
+    except Exception as e:
+        print(f"[FLW WEBHOOK ERROR] {e}")
+    return {"status": "acknowledged"}
+
+@app.post("/api/v1/billing/webhook/paystack", summary="Inbound Paystack payment webhook")
+async def paystack_webhook(request: Request):
+    body_bytes = await request.body()
+    try:
+        data = json.loads(body_bytes.decode())
+        event = data.get("event")
+        tx_data = data.get("data", {})
+        reference = tx_data.get("reference")
+        if event == "charge.success" and reference:
+            verify_and_activate_order(reference, gateway_ref=str(tx_data.get("id")))
+            return {"status": "verified"}
+    except Exception as e:
+        print(f"[PAYSTACK WEBHOOK ERROR] {e}")
+    return {"status": "acknowledged"}
 
 # ==================== OUTBOUND WEBHOOK & DISPATCH ENGINE ====================
 

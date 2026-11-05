@@ -5,7 +5,7 @@
  * Strictly Typed Modern TypeScript Implementation
  */
 
-import maplibregl from 'maplibre-gl';
+import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { TacticalAudioSystem } from './audio';
 import {
@@ -15,9 +15,10 @@ import {
 } from './types/telemetry';
 import {
   ApiKeyRecord,
-  CreateKeyRequestPayload,
-  CreateKeyResponsePayload,
-  CommercialTierKey
+  CommercialTierKey,
+  InitiateCheckoutPayload,
+  InitiateCheckoutResponse,
+  CompleteCheckoutResponse
 } from './types/licensing';
 import {
   AirportHub,
@@ -166,7 +167,6 @@ export function initMapLibreRadar(): void {
       zoom: 9.0,
       pitch: 45, // Tilted 3D pitch
       bearing: -20,
-      antialias: true,
       attributionControl: false
     });
 
@@ -190,7 +190,7 @@ export function initMapLibreRadar(): void {
       startAzimuthSweepSimulation();
     });
 
-    map.on('error', (e) => {
+    map.on('error', (e: unknown) => {
       console.warn('[MAPLIBRE WARNING]', e);
     });
 
@@ -950,12 +950,133 @@ export function triggerDeconflictSimulation(): void {
   }, 10000);
 }
 
+// ==================== MULTI-CURRENCY & ENTERPRISE BILLING ====================
+
+export const CURRENCY_RATES: Record<string, { symbol: string; rate: number; name: string }> = {
+  USD: { symbol: '$', rate: 1.0, name: 'US Dollar (Global Standard)' },
+  AED: { symbol: 'AED', rate: 3.6725, name: 'UAE Dirham (Dubai / GCC)' },
+  EUR: { symbol: '€', rate: 0.9250, name: 'Euro (European Cargo)' },
+  GBP: { symbol: '£', rate: 0.7920, name: 'British Pound (Heathrow)' },
+  NGN: { symbol: '₦', rate: 1550.0, name: 'Nigerian Naira (West Africa)' }
+};
+
+let currentBillingCurrency: string = 'USD';
+let currentPaymentRail: 'card' | 'wire' = 'card';
+let activeOrderRef: string | null = null;
+
+export function formatCurrencyAmount(amountUsd: number, currency: string = currentBillingCurrency): { formatted: string; raw: number; symbol: string } {
+  const spec = CURRENCY_RATES[currency.toUpperCase()] ?? CURRENCY_RATES['USD']!;
+  const raw = Math.round(amountUsd * spec.rate);
+  const formatted = `${spec.symbol} ${raw.toLocaleString()}`;
+  return { formatted, raw, symbol: spec.symbol };
+}
+
+export function setBillingCurrency(currency: string): void {
+  audio.playClick();
+  currentBillingCurrency = currency.toUpperCase();
+  const currencies = ['USD', 'AED', 'EUR', 'GBP', 'NGN'];
+
+  currencies.forEach((c) => {
+    const btn = document.getElementById(`curr-btn-${c}`);
+    if (btn) {
+      if (c === currentBillingCurrency) {
+        btn.className = 'px-2 py-1 text-[11px] rounded bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/50 shadow-sm transition-all';
+      } else {
+        btn.className = 'px-2 py-1 text-[11px] rounded text-slate-400 hover:text-white transition-all';
+      }
+    }
+  });
+
+  // Update tier pricing labels
+  const regionalQuote = formatCurrencyAmount(2500, currentBillingCurrency);
+  const carrierQuote = formatCurrencyAmount(7500, currentBillingCurrency);
+  const sovereignQuote = formatCurrencyAmount(25000, currentBillingCurrency);
+
+  const priceReg = document.getElementById('tier-price-regional');
+  const priceCar = document.getElementById('tier-price-carrier');
+  const priceSov = document.getElementById('tier-price-sovereign');
+
+  if (priceReg) priceReg.textContent = regionalQuote.formatted;
+  if (priceCar) priceCar.textContent = carrierQuote.formatted;
+  if (priceSov) priceSov.textContent = sovereignQuote.formatted;
+
+  const subReg = document.getElementById('tier-sub-regional');
+  const subCar = document.getElementById('tier-sub-carrier');
+  const subSov = document.getElementById('tier-sub-sovereign');
+
+  if (subReg) subReg.textContent = currentBillingCurrency === 'USD' ? '/ month' : `/ month (~$2,500 USD)`;
+  if (subCar) subCar.textContent = currentBillingCurrency === 'USD' ? '/ month' : `/ month (~$7,500 USD)`;
+  if (subSov) subSov.textContent = currentBillingCurrency === 'USD' ? '/ month (Annual)' : `/ month (~$25,000 USD Annual)`;
+
+  updateCheckoutQuote();
+}
+
+export function selectPaymentRail(rail: 'card' | 'wire'): void {
+  audio.playClick();
+  currentPaymentRail = rail;
+  const btnCard = document.getElementById('rail-btn-card');
+  const btnWire = document.getElementById('rail-btn-wire');
+  const secCard = document.getElementById('drawer-card-section');
+  const secWire = document.getElementById('drawer-wire-section');
+
+  if (rail === 'card') {
+    if (btnCard) btnCard.className = 'px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40';
+    if (btnWire) btnWire.className = 'px-2 py-0.5 rounded text-[10px] font-bold text-slate-400 hover:text-white';
+    secCard?.classList.remove('hidden');
+    secWire?.classList.add('hidden');
+  } else {
+    if (btnWire) btnWire.className = 'px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40';
+    if (btnCard) btnCard.className = 'px-2 py-0.5 rounded text-[10px] font-bold text-slate-400 hover:text-white';
+    secWire?.classList.remove('hidden');
+    secCard?.classList.add('hidden');
+  }
+}
+
+export function updateCheckoutQuote(): void {
+  const select = document.getElementById('checkout-tier') as HTMLSelectElement | null;
+  const tier = select?.value || 'global_cargo_carrier';
+  let baseUsd = 7500;
+  if (tier === 'regional_hub') baseUsd = 2500;
+  if (tier === 'sovereign_defense') baseUsd = 25000;
+
+  const quote = formatCurrencyAmount(baseUsd, currentBillingCurrency);
+  const quoteEl = document.getElementById('checkout-total-quote');
+  if (quoteEl) {
+    quoteEl.textContent = `${quote.formatted} ${currentBillingCurrency}`;
+  }
+}
+
+export function selectLicensingTier(tier: CommercialTierKey | string): void {
+  audio.playClick();
+  const select = document.getElementById('checkout-tier') as HTMLSelectElement | null;
+  if (select) {
+    select.value = tier;
+  }
+
+  // Update card border highlights
+  const cardReg = document.getElementById('card-tier-regional');
+  const cardCar = document.getElementById('card-tier-carrier');
+  const cardSov = document.getElementById('card-tier-sovereign');
+
+  cardReg?.classList.remove('border-cyan-400', 'shadow-glow-cyan');
+  cardCar?.classList.remove('border-cyan-400', 'shadow-glow-cyan');
+  cardSov?.classList.remove('border-cyan-400', 'shadow-glow-cyan');
+
+  if (tier === 'regional_hub') cardReg?.classList.add('border-cyan-400', 'shadow-glow-cyan');
+  if (tier === 'global_cargo_carrier') cardCar?.classList.add('border-cyan-400', 'shadow-glow-cyan');
+  if (tier === 'sovereign_defense') cardSov?.classList.add('border-cyan-400', 'shadow-glow-cyan');
+
+  updateCheckoutQuote();
+}
+
 // ==================== ENTERPRISE & API PORTAL ====================
 
 export function openEnterprisePortal(initialTab: string = 'keys'): void {
   audio.playClick();
   const modal = document.getElementById('enterprise-portal-modal');
   modal?.classList.remove('hidden');
+  const scrollContainer = modal?.querySelector('.overflow-y-auto') as HTMLElement | null;
+  if (scrollContainer) scrollContainer.scrollTop = 0;
   switchPortalTab(initialTab);
 }
 
@@ -982,19 +1103,13 @@ export function switchPortalTab(tabName: string): void {
     }
   });
 
-  if (tabName === 'keys') loadApiKeys();
+  if (tabName === 'keys') {
+    loadApiKeys();
+    setBillingCurrency(currentBillingCurrency);
+  }
   if (tabName === 'webhooks') loadWebhooksAndAlerts();
   if (tabName === 'audit') refreshAuditLogs();
   if (tabName === 'db-config') loadSystemConfig();
-}
-
-export function selectLicensingTier(tier: CommercialTierKey | string): void {
-  audio.playClick();
-  const select = document.getElementById('new-key-tier') as HTMLSelectElement | null;
-  if (select) {
-    select.value = tier;
-    select.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }
 }
 
 export async function loadApiKeys(): Promise<void> {
@@ -1041,55 +1156,150 @@ export async function loadApiKeys(): Promise<void> {
   }
 }
 
-export async function generatePartnerApiKey(): Promise<void> {
-  const nameInput = document.getElementById('new-key-name') as HTMLInputElement | null;
-  const tierSelect = document.getElementById('new-key-tier') as HTMLSelectElement | null;
-  const name = (nameInput?.value ?? '').trim();
+export async function initiateEnterpriseCheckout(): Promise<void> {
+  const orgInput = document.getElementById('checkout-org-name') as HTMLInputElement | null;
+  const emailInput = document.getElementById('checkout-billing-email') as HTMLInputElement | null;
+  const tierSelect = document.getElementById('checkout-tier') as HTMLSelectElement | null;
+
+  const orgName = (orgInput?.value ?? '').trim();
+  const email = (emailInput?.value ?? '').trim();
   const licenseType = tierSelect?.value || 'global_cargo_carrier';
 
-  if (!name) {
-    alert('Please enter a partner or client organization name.');
+  if (!orgName) {
+    alert('Please enter an Airline or Partner Organization Name.');
+    return;
+  }
+  if (!email || !email.includes('@')) {
+    alert('Please enter a valid Corporate Billing / Accounts Payable Email.');
     return;
   }
 
   audio.playDirectiveChime();
+  const btn = document.getElementById('btn-initiate-checkout') as HTMLButtonElement | null;
+  if (btn) btn.textContent = 'CONNECTING TO ENTERPRISE VAULT...';
+
   try {
-    const payload: CreateKeyRequestPayload = {
-      name,
+    const payload: InitiateCheckoutPayload = {
+      organization_name: orgName,
+      billing_email: email,
       license_type: licenseType,
-      billing_email: ''
+      currency: currentBillingCurrency,
+      payment_method: currentPaymentRail
     };
 
-    const res = await fetch('/api/v1/auth/keys', {
+    const res = await fetch('/api/v1/billing/checkout/initiate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
 
-    if (res.ok) {
-      const data: CreateKeyResponsePayload = await res.json();
-      const banner = document.getElementById('new-key-banner');
-      const text = document.getElementById('new-key-raw-text');
-      const licIdEl = document.getElementById('new-key-license-id');
-      const feeEl = document.getElementById('new-key-fee');
-      const slaEl = document.getElementById('new-key-sla');
-
-      if (banner && text) {
-        text.textContent = data.api_key;
-        if (licIdEl) licIdEl.textContent = data.license_id || 'COMMERCIAL-LIC';
-        if (feeEl) feeEl.textContent = data.monthly_fee_usd ? `$${data.monthly_fee_usd.toLocaleString()}/mo` : 'CUSTOM ANNUAL';
-        if (slaEl) slaEl.textContent = data.sla_uptime || '99.99%';
-        banner.classList.remove('hidden');
-      }
-      if (nameInput) nameInput.value = '';
-      loadApiKeys();
-    } else {
+    if (!res.ok) {
       const err = await res.json();
-      alert(`License provisioning failed: ${err.detail || 'Commercial authorization required'}`);
+      throw new Error(err.detail || 'Order initialization failed');
     }
-  } catch (e) {
-    alert('Failed to generate key: ' + e);
+
+    const data: InitiateCheckoutResponse = await res.json();
+    activeOrderRef = data.order_ref;
+
+    // Reveal order drawer
+    const drawer = document.getElementById('checkout-order-drawer');
+    const orderRefEl = document.getElementById('order-ref-display');
+    const memoRefEl = document.getElementById('wire-memo-ref');
+    const amountEl = document.getElementById('order-amount-display');
+    const statusBadge = document.getElementById('order-status-badge');
+
+    if (drawer) drawer.classList.remove('hidden');
+    if (orderRefEl) orderRefEl.textContent = data.order_ref;
+    if (memoRefEl) memoRefEl.textContent = data.order_ref;
+    if (amountEl) {
+      amountEl.textContent = `${data.currency_symbol} ${Number(data.amount_charged).toLocaleString()} ${data.currency} (≈ $${Number(data.amount_usd).toLocaleString()} USD)`;
+    }
+    if (statusBadge) {
+      statusBadge.textContent = 'AWAITING PAYMENT';
+      statusBadge.className = 'px-2 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-600 text-[10px] font-bold';
+    }
+
+    // Toggle view according to currentPaymentRail
+    selectPaymentRail(currentPaymentRail);
+
+    // Scroll into drawer smoothly
+    drawer?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    if (btn) {
+      btn.innerHTML = `
+        <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+        </svg>
+        ORDER INITIATED (${data.order_ref})
+      `;
+    }
+  } catch (err: unknown) {
+    alert('Checkout initialization error: ' + (err instanceof Error ? err.message : String(err)));
+    if (btn) btn.textContent = 'INITIALIZE SECURE ENTERPRISE CHECKOUT';
   }
+}
+
+export async function completeEnterpriseOrder(): Promise<void> {
+  if (!activeOrderRef) {
+    alert('Please click "INITIALIZE SECURE ENTERPRISE CHECKOUT" first to create an order reference.');
+    return;
+  }
+
+  audio.playDirectiveChime();
+  try {
+    const res = await fetch('/api/v1/billing/checkout/complete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ order_ref: activeOrderRef })
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || 'Failed to complete order verification');
+    }
+
+    const data: CompleteCheckoutResponse = await res.json();
+
+    // Update status badge
+    const statusBadge = document.getElementById('order-status-badge');
+    if (statusBadge) {
+      statusBadge.textContent = 'PAID & VERIFIED (SETTLED)';
+      statusBadge.className = 'px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-500 text-[10px] font-bold shadow-glow-cyan';
+    }
+
+    // Reveal token banner
+    const banner = document.getElementById('new-key-banner');
+    const text = document.getElementById('new-key-raw-text');
+    const licIdEl = document.getElementById('new-key-license-id');
+    const feeEl = document.getElementById('new-key-fee');
+    const slaEl = document.getElementById('new-key-sla');
+
+    if (banner && text) {
+      text.textContent = data.api_key;
+      if (licIdEl) licIdEl.textContent = data.license_id || 'COMMERCIAL-LIC';
+      if (feeEl) feeEl.textContent = data.monthly_fee_usd ? `$${Number(data.monthly_fee_usd).toLocaleString()}/mo` : 'CUSTOM ANNUAL';
+      if (slaEl) slaEl.textContent = data.sla_uptime || '99.99%';
+      banner.classList.remove('hidden');
+      banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    loadApiKeys();
+  } catch (err: unknown) {
+    alert('Order verification error: ' + (err instanceof Error ? err.message : String(err)));
+  }
+}
+
+export function downloadCurrentInvoice(): void {
+  if (!activeOrderRef) {
+    alert('Please initialize an enterprise checkout order first to generate a proforma invoice.');
+    return;
+  }
+  audio.playClick();
+  window.open(`/api/v1/billing/invoice/${activeOrderRef}`, '_blank');
+}
+
+export function generatePartnerApiKey(): void {
+  initiateEnterpriseCheckout();
 }
 
 export function copyRawApiKey(): void {
@@ -1440,6 +1650,11 @@ window.triggerManualTestDispatch = triggerManualTestDispatch;
 window.refreshAuditLogs = refreshAuditLogs;
 window.saveIngestionApiKeys = saveIngestionApiKeys;
 window.saveDatabaseConfig = saveDatabaseConfig;
+window.setBillingCurrency = setBillingCurrency;
+window.selectPaymentRail = selectPaymentRail;
+window.initiateEnterpriseCheckout = initiateEnterpriseCheckout;
+window.completeEnterpriseOrder = completeEnterpriseOrder;
+window.downloadCurrentInvoice = downloadCurrentInvoice;
 
 // Boot up sequence
 window.addEventListener('DOMContentLoaded', () => {
