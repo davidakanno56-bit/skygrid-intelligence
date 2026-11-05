@@ -1,0 +1,123 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background-color: #030712;
+  color: #f1f5f9;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Bloomberg-grade custom scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: #02050b;
+}
+::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #22d3ee;
+}
+
+/* Terminal & Tactical Scanline Grid */
+.bg-tactical-grid {
+  background-size: 32px 32px;
+  background-image: 
+    linear-gradient(to right, rgba(34, 211, 238, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(34, 211, 238, 0.03) 1px, transparent 1px);
+}
+
+.bg-dot-matrix {
+  background-image: radial-gradient(rgba(34, 211, 238, 0.12) 1px, transparent 0);
+  background-size: 20px 20px;
+}
+
+.radar-sweep-cone {
+  background: conic-gradient(
+    from 0deg,
+    rgba(34, 211, 238, 0.35) 0deg,
+    rgba(34, 211, 238, 0.12) 45deg,
+    rgba(34, 211, 238, 0) 90deg,
+    rgba(34, 211, 238, 0) 360deg
+  );
+}
+
+/* Monospace telemetry styling */
+.font-telemetry {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, Monaco, Consolas, monospace;
+  font-feature-settings: "tnum" 1, "zero" 1;
+}
+
+/* Obsidian Glass Panels */
+.obsidian-card {
+  background: rgba(6, 13, 29, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(34, 211, 238, 0.14);
+}
+
+.obsidian-card:hover {
+  border-color: rgba(34, 211, 238, 0.28);
+}
+
+.obsidian-card-active {
+  background: rgba(9, 21, 46, 0.85);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(34, 211, 238, 0.4);
+  box-shadow: 0 0 25px -4px rgba(34, 211, 238, 0.18);
+}
+
+/* Corner bracket accents for Bloomberg/military hardware HUD feel */
+.tactical-brackets {
+  position: relative;
+}
+.tactical-brackets::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  width: 6px;
+  height: 6px;
+  border-top: 2px solid #22d3ee;
+  border-left: 2px solid #22d3ee;
+  pointer-events: none;
+}
+.tactical-brackets::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  width: 6px;
+  height: 6px;
+  border-bottom: 2px solid #22d3ee;
+  border-right: 2px solid #22d3ee;
+  pointer-events: none;
+}
+
+/* Pulse radar ring keyframes */
+@keyframes pingRadar {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.9;
+  }
+  75%, 100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+.animate-ping-radar {
+  animation: pingRadar 2.4s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
