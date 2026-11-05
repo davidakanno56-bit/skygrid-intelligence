@@ -16,9 +16,8 @@
   <!-- Three.js for 3D Globe & Radar Projection (Fallback) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
-  <!-- MapLibre GL JS & CSS -->
+  <!-- MapLibre GL CSS -->
   <link rel="stylesheet" href="/src/maplibre/maplibre-gl.css" />
-  <script src="/src/maplibre/maplibre-gl.js"></script>
 
   <script>
     tailwind.config = {
@@ -333,6 +332,31 @@
 
   <!-- MAIN WRAPPER -->
   <div class="relative z-10 flex flex-col min-h-screen">
+
+    <!-- ==================== BLOOMBERG-GRADE TELEMETRY & CARGO TICKER TAPE ==================== -->
+    <div class="border-b border-cyan-500/15 bg-[#02050b]/95 backdrop-blur-md px-4 py-1.5 flex items-center justify-between text-[10px] font-mono select-none overflow-hidden">
+      <div class="flex items-center space-x-2 text-slate-500 shrink-0 pr-3 border-r border-slate-800/80">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+        <span class="text-cyan-400 font-extrabold tracking-wider">SKYGRID REAL-TIME TICKER</span>
+        <span class="text-slate-600">|</span>
+        <span class="text-emerald-400 font-bold">DEFCON 4</span>
+      </div>
+      <div class="flex items-center space-x-6 overflow-x-auto whitespace-nowrap scrollbar-none text-slate-400 tracking-tight px-3">
+        <span>DXB-DWC THROUGHPUT: <strong class="text-white">842.6 T/HR</strong> <span class="text-emerald-400 font-bold">+4.8%</span></span>
+        <span>CORRIDOR RISK: <strong class="text-emerald-400 font-bold">14.2 CRI</strong> <span class="text-slate-500 font-semibold">[LOW HAZARD]</span></span>
+        <span>SLOT ADHERENCE: <strong class="text-cyan-300">96.4%</strong> <span class="text-cyan-400 font-bold">+2.1%</span></span>
+        <span>WINDSHEAR INDEX: <strong class="text-slate-200">8.2 KTS</strong> <span class="text-emerald-400 font-bold">NOMINAL</span></span>
+        <span>ADS-B SATCOM: <strong class="text-cyan-400 font-bold">100% COVERAGE</strong></span>
+        <span>GPS RAIM ENVELOPE: <strong class="text-white font-bold">0.003 NM</strong></span>
+        <span>JET-A1 SPOT: <strong class="text-amber-300 font-bold">$842.50/MT</strong> <span class="text-emerald-400 font-bold">-0.4%</span></span>
+        <span>LAMINAR SEPARATION: <strong class="text-emerald-400 font-bold">6.0 NM ENFORCED</strong></span>
+        <span>SHA-256 AUDIT PROOF: <strong class="text-cyan-300 font-bold">BLOCK #9104-A VERIFIED</strong></span>
+      </div>
+      <div class="hidden xl:flex items-center space-x-2 shrink-0 pl-3 border-l border-slate-800/80 text-slate-400">
+        <span>COMMERCIAL GATEWAY:</span>
+        <span class="text-emerald-400 font-bold">99.99% SLA</span>
+      </div>
+    </div>
 
     <!-- ==================== TOP NAVIGATION ==================== -->
     <header class="border-b border-cyan-500/20 bg-obsidian-900/90 backdrop-blur-md sticky top-0 z-50 px-4 lg:px-6 py-2.5">
@@ -1581,7 +1605,7 @@
 
   </div>
 
-  <!-- LOAD APPLICATION SCRIPT -->
-  <script src="/src/app.js"></script>
+  <!-- LOAD STRICT TYPESCRIPT APPLICATION MODULE -->
+  <script type="module" src="/src/app.ts"></script>
 </body>
 </html>

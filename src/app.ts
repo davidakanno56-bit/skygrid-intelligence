@@ -1,485 +1,66 @@
 /**
  * SkyGrid Intelligence - Enterprise Aviation Risk Command Center
- * Akanno Tech Labs
- * Bloomberg-grade Real-Time Flight Telemetry & 3D Radar System
- * Production B2B SaaS Integration Layer
+ * Akanno Tech Labs • Production B2B SaaS Platform
+ * Bloomberg-grade Real-Time Flight Telemetry & MapLibre Vector Radar System
+ * Strictly Typed Modern TypeScript Implementation
  */
 
-// Tactical Data Sets & Fallback State
-const AIR_CORRIDORS = {
-  'dxb-primary': {
-    name: 'DXB AIR CORRIDOR',
-    code: 'DXB-CORR-01',
-    lat: 25.2532,
-    lng: 55.3657,
-    coordsLabel: '25.25°N, 55.36°E',
-    activeVectors: 1428,
-    riskIndex: 14.2,
-    throughput: 842.6,
-    directives: 42,
-    riskGauge: 28,
-    status: 'Optimal'
-  },
-  'doh-dxb': {
-    name: 'DOH-DXB SUPERWAY',
-    code: 'GULF-SW-04',
-    lat: 25.3200,
-    lng: 53.5000,
-    coordsLabel: '25.32°N, 53.50°E',
-    activeVectors: 964,
-    riskIndex: 19.8,
-    throughput: 620.4,
-    directives: 28,
-    riskGauge: 34,
-    status: 'Caution'
-  },
-  'sin-dxb': {
-    name: 'SIN-DXB EURASIA ROUTE',
-    code: 'EURASIA-E07',
-    lat: 18.4200,
-    lng: 68.1000,
-    coordsLabel: '18.42°N, 68.10°E',
-    activeVectors: 1850,
-    riskIndex: 16.5,
-    throughput: 1140.2,
-    directives: 65,
-    riskGauge: 24,
-    status: 'Optimal'
-  },
-  'lhr-dxb': {
-    name: 'LHR-DXB GLOBAL AXIS',
-    code: 'TRANS-AXIS-02',
-    lat: 34.8000,
-    lng: 42.1000,
-    coordsLabel: '34.80°N, 42.10°E',
-    activeVectors: 1215,
-    riskIndex: 12.9,
-    throughput: 795.0,
-    directives: 31,
-    riskGauge: 22,
-    status: 'Optimal'
-  },
-  'dwc-expansion': {
-    name: 'DWC EXPANSION SECTOR',
-    code: 'DWC-LOG-9',
-    lat: 24.8967,
-    lng: 55.1614,
-    coordsLabel: '24.90°N, 55.16°E',
-    activeVectors: 712,
-    riskIndex: 8.4,
-    throughput: 510.8,
-    directives: 18,
-    riskGauge: 16,
-    status: 'Optimal'
-  }
-};
+import maplibregl from 'maplibre-gl';
+import 'maplibre-gl/dist/maplibre-gl.css';
+import { TacticalAudioSystem } from './audio';
+import {
+  FlightVector,
+  CorridorMetric,
+  TacticalDirective
+} from './types/telemetry';
+import {
+  ApiKeyRecord,
+  CreateKeyRequestPayload,
+  CreateKeyResponsePayload,
+  CommercialTierKey
+} from './types/licensing';
+import {
+  AirportHub,
+  CorridorCameraPreset,
+  FlightArcDefinition,
+  LayerToggleState
+} from './types/radar';
+import {
+  LiveSyncResponse,
+  WebhookRecord,
+  DispatchAlertRecord,
+  ComplianceAuditRecord,
+  SystemStatusResponse
+} from './types/system';
+import {
+  AIR_CORRIDORS as DEFAULT_AIR_CORRIDORS,
+  INITIAL_FLIGHTS,
+  INITIAL_DIRECTIVES as DEFAULT_DIRECTIVES
+} from './data/mockData';
 
-let FLIGHTS_DATA = [
-  {
-    id: 'FL-902',
-    callsign: 'EK-CARGO 902',
-    carrier: 'Emirates SkyCargo',
-    aircraft: 'Boeing 777-200LRF',
-    origin: 'FRA',
-    originCity: 'Frankfurt',
-    destination: 'DXB',
-    destinationCity: 'Dubai',
-    altitude: 38000,
-    flightLevel: 'FL380',
-    speed: 488,
-    mach: 0.83,
-    heading: 128,
-    lat: 25.324,
-    lng: 55.452,
-    riskScore: 4.2,
-    riskCategory: 'minimal',
-    status: 'In Corridor',
-    cargoPayload: 'Cold-Chain Bio-Pharmaceuticals (Active Dry Ice Containers)',
-    cargoWeightTonnes: 94.2,
-    transponder: '7142-S',
-    etaMinutes: 14,
-    hazardNote: 'Nominal corridor trajectory. Laminar separation confirmed.'
-  },
-  {
-    id: 'FL-4412',
-    callsign: 'FDX-4412',
-    carrier: 'FedEx Express Global',
-    aircraft: 'McDonnell Douglas MD-11F',
-    origin: 'MEM',
-    originCity: 'Memphis',
-    destination: 'DXB',
-    destinationCity: 'Dubai',
-    altitude: 31000,
-    flightLevel: 'FL310',
-    speed: 452,
-    mach: 0.79,
-    heading: 104,
-    lat: 25.185,
-    lng: 55.221,
-    riskScore: 28.0,
-    riskCategory: 'watch',
-    status: 'Vector Corrected',
-    cargoPayload: 'Class 9 High-Density Lithium-Ion Energy Cells (Temp Regulated)',
-    cargoWeightTonnes: 68.5,
-    transponder: '4521-X',
-    etaMinutes: 22,
-    hazardNote: 'Tailwind windshear anomaly at FL310; speed vector dampened by -12 kts.'
-  },
-  {
-    id: 'FL-81',
-    callsign: 'ATLAS-81',
-    carrier: 'Atlas Air Heavy Freight',
-    aircraft: 'Boeing 747-8F',
-    origin: 'ORD',
-    originCity: 'Chicago O’Hare',
-    destination: 'DXB',
-    destinationCity: 'Dubai',
-    altitude: 36000,
-    flightLevel: 'FL360',
-    speed: 495,
-    mach: 0.85,
-    heading: 135,
-    lat: 25.405,
-    lng: 55.502,
-    riskScore: 14.6,
-    riskCategory: 'low',
-    status: 'In Corridor',
-    cargoPayload: 'Precision Aerospace Turbofan Assemblies & Avionics Spares',
-    cargoWeightTonnes: 118.4,
-    transponder: '6330-S',
-    etaMinutes: 31,
-    hazardNote: 'Clear of wake turbulence zones. Speed schedule synchronized.'
-  },
-  {
-    id: 'FL-109',
-    callsign: 'DHL-AERO 109',
-    carrier: 'DHL Aviation Middle East',
-    aircraft: 'Airbus A330-200F',
-    origin: 'LEJ',
-    originCity: 'Leipzig',
-    destination: 'DWC',
-    destinationCity: 'Al Maktoum',
-    altitude: 12000,
-    flightLevel: 'FL120',
-    speed: 310,
-    mach: 0.58,
-    heading: 195,
-    lat: 24.952,
-    lng: 55.155,
-    riskScore: 7.8,
-    riskCategory: 'minimal',
-    status: 'Final Descent',
-    cargoPayload: 'Cross-Border High-Value Express Priority Freight',
-    cargoWeightTonnes: 54.1,
-    transponder: '2214-S',
-    etaMinutes: 9,
-    hazardNote: 'Direct straight-in ILS Runway 30L cleared at DWC.'
-  },
-  {
-    id: 'FL-77',
-    callsign: 'SQ-CARGO 77',
-    carrier: 'Singapore Cargo',
-    aircraft: 'Boeing 777F',
-    origin: 'SIN',
-    originCity: 'Singapore Changi',
-    destination: 'DXB',
-    destinationCity: 'Dubai',
-    altitude: 26000,
-    flightLevel: 'FL260',
-    speed: 440,
-    mach: 0.76,
-    heading: 310,
-    lat: 25.552,
-    lng: 55.705,
-    riskScore: 19.3,
-    riskCategory: 'watch',
-    status: 'Holding Pattern',
-    cargoPayload: 'ASML EUV Semiconductor Components & Optoelectronics',
-    cargoWeightTonnes: 72.8,
-    transponder: '7504-T',
-    etaMinutes: 38,
-    hazardNote: 'Approach sector slot saturation; holding orbit 2 cleared.'
-  },
-  {
-    id: 'FL-994',
-    callsign: 'QTR-994',
-    carrier: 'Qatar Airways Cargo',
-    aircraft: 'Boeing 777-200F',
-    origin: 'DOH',
-    originCity: 'Doha Hamad',
-    destination: 'DXB',
-    destinationCity: 'Dubai',
-    altitude: 24000,
-    flightLevel: 'FL240',
-    speed: 395,
-    mach: 0.72,
-    heading: 85,
-    lat: 25.105,
-    lng: 55.052,
-    riskScore: 11.2,
-    riskCategory: 'low',
-    status: 'In Corridor',
-    cargoPayload: 'Perishable Diplomatic Consignments & Bank Bullion',
-    cargoWeightTonnes: 62.0,
-    transponder: '3318-S',
-    etaMinutes: 18,
-    hazardNote: 'Nominal crossing boundary. Sector handover approved.'
-  },
-  {
-    id: 'FL-63',
-    callsign: 'CPA-CARGO 63',
-    carrier: 'Cathay Pacific Cargo',
-    aircraft: 'Boeing 747-400ERF',
-    origin: 'HKG',
-    originCity: 'Hong Kong Chek Lap Kok',
-    destination: 'DWC',
-    destinationCity: 'Al Maktoum',
-    altitude: 39000,
-    flightLevel: 'FL390',
-    speed: 512,
-    mach: 0.86,
-    heading: 265,
-    lat: 24.855,
-    lng: 55.302,
-    riskScore: 23.5,
-    riskCategory: 'watch',
-    status: 'Vector Corrected',
-    cargoPayload: 'Consumer Electronics & Solid State Storage Modules',
-    cargoWeightTonnes: 104.7,
-    transponder: '5190-S',
-    etaMinutes: 26,
-    hazardNote: 'Autonomous altitude step to FL370 confirmed for laminar merge.'
-  },
-  {
-    id: 'FL-9902',
-    callsign: 'UAE-9902',
-    carrier: 'Emirates SkyCargo Special',
-    aircraft: 'Airbus A350-1000F',
-    origin: 'SYD',
-    originCity: 'Sydney Kingsford Smith',
-    destination: 'DXB',
-    destinationCity: 'Dubai',
-    altitude: 41000,
-    flightLevel: 'FL410',
-    speed: 504,
-    mach: 0.85,
-    heading: 305,
-    lat: 25.602,
-    lng: 55.854,
-    riskScore: 3.1,
-    riskCategory: 'minimal',
-    status: 'In Corridor',
-    cargoPayload: 'Fresh Chilled Wagyu Export & Sovereign Gold Bullion',
-    cargoWeightTonnes: 88.0,
-    transponder: '7721-S',
-    etaMinutes: 44,
-    hazardNote: 'Clear oceanic arrival corridor. Zero hazard profile.'
-  },
-  {
-    id: 'DLH-8220',
-    callsign: 'DLH-8220',
-    carrier: 'Lufthansa Cargo AG',
-    aircraft: 'Boeing 777F',
-    origin: 'CGN',
-    originCity: 'Cologne Bonn',
-    destination: 'DXB',
-    destinationCity: 'Dubai',
-    altitude: 37000,
-    flightLevel: 'FL370',
-    speed: 482,
-    mach: 0.82,
-    heading: 120,
-    lat: 25.221,
-    lng: 55.285,
-    riskScore: 8.4,
-    riskCategory: 'minimal',
-    status: 'In Corridor',
-    cargoPayload: 'German Automotive Precision Robotics Components',
-    cargoWeightTonnes: 81.3,
-    transponder: '4112-S',
-    etaMinutes: 19,
-    hazardNote: 'Standard STAR transition on schedule.'
-  },
-  {
-    id: 'CLX-714',
-    callsign: 'CLX-714',
-    carrier: 'Cargolux International',
-    aircraft: 'Boeing 747-8F',
-    origin: 'LUX',
-    originCity: 'Luxembourg Findel',
-    destination: 'DXB',
-    destinationCity: 'Dubai',
-    altitude: 35000,
-    flightLevel: 'FL350',
-    speed: 465,
-    mach: 0.81,
-    heading: 142,
-    lat: 25.385,
-    lng: 55.625,
-    riskScore: 31.2,
-    riskCategory: 'elevated',
-    status: 'Rerouting Required',
-    cargoPayload: 'High-Value Banknotes & Spacecraft Subsystem Harnesses',
-    cargoWeightTonnes: 112.0,
-    transponder: '7005-X',
-    etaMinutes: 35,
-    hazardNote: 'Geomagnetic beacon jitter detected; autonomous vector offset 15° Right requested.'
-  }
-];
+// Map of Air Corridors indexed by ID
+const CORRIDOR_MAP: Record<string, CorridorMetric> = {};
+DEFAULT_AIR_CORRIDORS.forEach((c) => {
+  CORRIDOR_MAP[c.id] = c;
+});
 
-const TACTICAL_NODES = [
-  { name: 'OMDB (DXB)', type: 'PRIMARY HUB', lat: 25.2532, lng: 55.3657, desc: 'Dubai International Mega Terminal' },
-  { name: 'OMDW (DWC)', type: 'LOGISTICS HUB', lat: 24.8967, lng: 55.1614, desc: 'Al Maktoum Int Logistics Hub' },
-  { name: 'DESIG', type: 'TAC GATE', lat: 25.6500, lng: 55.7500, desc: 'Eastern Arrival STAR Fix' },
-  { name: 'RIKET', type: 'WAYPOINT', lat: 25.8200, lng: 55.1200, desc: 'Northern Inbound Oceanic Gate' },
-  { name: 'GUPVO', type: 'TAC GATE', lat: 24.6200, lng: 56.1000, desc: 'Southeastern Gulf Transition' },
-  { name: 'ORSAR', type: 'WAYPOINT', lat: 25.4800, lng: 54.4500, desc: 'Arabian Gulf Western Fix' },
-  { name: 'VUTEB', type: 'HOLDING', lat: 24.4500, lng: 54.9500, desc: 'Southwest Holding Pattern' },
-  { name: 'ITRAX', type: 'WAYPOINT', lat: 25.0800, lng: 55.2200, desc: 'Terminal Dual-Runway Merge' }
-];
+let FLIGHTS_DATA: FlightVector[] = [...INITIAL_FLIGHTS];
+let DIRECTIVES_LOG: TacticalDirective[] = [...DEFAULT_DIRECTIVES];
 
-let DIRECTIVES_LOG = [
-  {
-    id: 'DIR-88102',
-    time: '19:24 GST',
-    flight: 'FDX-4412',
-    action: 'VORTEX_SEPARATION',
-    text: 'Separation vector extended to 6.2 NM trailing EK-902 due to heavy MD-11 wake vortex index.',
-    reduction: '-14.2%',
-    confidence: '99.6%'
-  },
-  {
-    id: 'DIR-88101',
-    time: '19:23 GST',
-    flight: 'CLX-714',
-    action: 'WAYPOINT_BYPASS',
-    text: 'Bypassing congested DESIG entry fix directly to RIKET waypoint at heading 142° to eliminate hold delay.',
-    reduction: '-18.7%',
-    confidence: '99.2%'
-  },
-  {
-    id: 'DIR-88100',
-    time: '19:21 GST',
-    flight: 'CPA-CARGO 63',
-    action: 'ALTITUDE_STEP_CLIMB',
-    text: 'Step-descent to FL370 confirmed to establish laminar separation with inbound SYD A350.',
-    reduction: '-12.0%',
-    confidence: '99.8%'
-  },
-  {
-    id: 'DIR-88099',
-    time: '19:18 GST',
-    flight: 'SQ-CARGO 77',
-    action: 'SPEED_ADJUSTMENT',
-    text: 'Mach reduction to 0.74 issued to optimize DWC cross-corridor runway arrival slot.',
-    reduction: '-8.5%',
-    confidence: '99.4%'
-  },
-  {
-    id: 'DIR-88098',
-    time: '19:15 GST',
-    flight: 'DHL-AERO 109',
-    action: 'SLOT_OPTIMIZATION',
-    text: 'Direct straight-in ILS Runway 30L cleared at DWC; slot utilization efficiency +16.2%.',
-    reduction: '-6.4%',
-    confidence: '99.9%'
-  }
-];
-
-// Tactical Web Audio System
-class TacticalAudio {
-  constructor() {
-    this.ctx = null;
-    this.enabled = true;
-  }
-  init() {
-    if (!this.ctx && (window.AudioContext || window.webkitAudioContext)) {
-      this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    if (this.ctx && this.ctx.state === 'suspended') {
-      this.ctx.resume();
-    }
-  }
-  playPing() {
-    if (!this.enabled) return;
-    try {
-      this.init();
-      if (!this.ctx) return;
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(880, this.ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(1760, this.ctx.currentTime + 0.08);
-      gain.gain.setValueAtTime(0.03, this.ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.14);
-      osc.connect(gain);
-      gain.connect(this.ctx.destination);
-      osc.start();
-      osc.stop(this.ctx.currentTime + 0.14);
-    } catch (e) {}
-  }
-  playClick() {
-    if (!this.enabled) return;
-    try {
-      this.init();
-      if (!this.ctx) return;
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(1200, this.ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(600, this.ctx.currentTime + 0.04);
-      gain.gain.setValueAtTime(0.04, this.ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.04);
-      osc.connect(gain);
-      gain.connect(this.ctx.destination);
-      osc.start();
-      osc.stop(this.ctx.currentTime + 0.04);
-    } catch (e) {}
-  }
-  playChime() {
-    if (!this.enabled) return;
-    try {
-      this.init();
-      if (!this.ctx) return;
-      const now = this.ctx.currentTime;
-      [587.33, 880, 1174.66].forEach((freq, idx) => {
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, now + idx * 0.06);
-        gain.gain.setValueAtTime(0.04, now + idx * 0.06);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.06 + 0.2);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start(now + idx * 0.06);
-        osc.stop(now + idx * 0.06 + 0.2);
-      });
-    } catch (e) {}
-  }
-}
-
-const audio = new TacticalAudio();
+// Tactical Web Audio Synthesizer
+const audio = new TacticalAudioSystem();
 
 // Application State
-let activeCorridorKey = 'dxb-primary';
-let currentFilter = 'all';
-let selectedFlight = null;
-let layersState = { vectors: true, sweep: true };
-let radarViewMode = '3d'; // '3d' or '2d'
-let activeApiKey = 'sk_live_akanno_sovereign_dxb_001';
-
-// ==================== MAPLIBRE GL JS TACTICAL VECTOR RADAR SYSTEM ====================
-
-let map = null;
-let mapInitialized = false;
-let aircraftMarkers = {};
-let hubMarkers = [];
-let movementInterval = null;
-let currentSweepAzimuth = 184;
+let activeCorridorKey: string = 'dxb-primary';
+let currentFilter: string = 'all';
+let selectedFlight: FlightVector | null = null;
+const layersState: LayerToggleState = { vectors: true, sweep: true };
+let radarViewMode: '3d' | '2d' = '3d';
+const activeApiKey: string = 'sk_live_akanno_sovereign_dxb_001';
 
 // Strategic Geographic Airport Hub Coordinates
-const AIRPORT_HUBS = [
-  { code: 'OMDB / DXB', name: 'Dubai International Mega-Terminal', city: 'Dubai, UAE', coords: [55.3657, 25.2532], isPrimary: true, role: 'Primary Cargo Mega-Terminal & Hub Center' },
+const AIRPORT_HUBS: AirportHub[] = [
+  { code: 'OMDB / DXB', name: 'Dubai International Mega-Terminal', city: 'Dubai, UAE', coords: [55.3657, 25.2532], isPrimary: true, role: 'Primary Cargo Mega-Terminal & Strategic Hub' },
   { code: 'OMDW / DWC', name: 'Al Maktoum International Logistics', city: 'Jebel Ali, UAE', coords: [55.1614, 24.8967], isPrimary: true, role: 'Logistics Superhub & Dual Runway Sync' },
   { code: 'OTHH / DOH', name: 'Hamad International', city: 'Doha, Qatar', coords: [51.6080, 25.2731], isPrimary: false, role: 'Gulf Inter-Hub High-Speed Vector' },
   { code: 'EGLL / LHR', name: 'London Heathrow Cargo Terminal', city: 'London, UK', coords: [-0.4614, 51.4700], isPrimary: false, role: 'Transatlantic Axis Gateway' },
@@ -493,7 +74,7 @@ const AIRPORT_HUBS = [
 ];
 
 // Corridor Camera Orientations (Real Geographic Targets with 3D Pitch: 45)
-const CORRIDOR_CAMERA_TARGETS = {
+const CORRIDOR_CAMERA_TARGETS: Record<string, CorridorCameraPreset> = {
   'dxb-primary': {
     center: [55.3657, 25.2532],
     zoom: 9.2,
@@ -531,9 +112,17 @@ const CORRIDOR_CAMERA_TARGETS = {
   }
 };
 
-// Generate precise geodesic circle coordinates for tactical range rings
-function createRangeRingCoordinates(center, radiusKm, points = 64) {
-  const coords = [];
+// MapLibre GL Instances & Tracking
+let map: maplibregl.Map | null = null;
+let mapInitialized: boolean = false;
+const aircraftMarkers: Record<string, { marker: maplibregl.Marker; el: HTMLElement; flight: FlightVector }> = {};
+let hubMarkers: maplibregl.Marker[] = [];
+let movementInterval: ReturnType<typeof setInterval> | null = null;
+let currentSweepAzimuth: number = 184;
+
+// Precise geodesic circle generator for tactical range rings
+function createRangeRingCoordinates(center: [number, number], radiusKm: number, points: number = 64): [number, number][] {
+  const coords: [number, number][] = [];
   const kmPerLng = 111.320 * Math.cos((center[1] * Math.PI) / 180);
   const kmPerLat = 110.574;
   for (let i = 0; i <= points; i++) {
@@ -545,9 +134,9 @@ function createRangeRingCoordinates(center, radiusKm, points = 64) {
   return coords;
 }
 
-// Generate curved Bezier arc between two geographic hubs
-function generateCurvedArc(start, end, numPoints = 40) {
-  const points = [];
+// Curved Bezier arc between two geographic hubs
+function generateCurvedArc(start: [number, number], end: [number, number], numPoints: number = 40): [number, number][] {
+  const points: [number, number][] = [];
   const midLng = (start[0] + end[0]) / 2;
   const isLongRange = Math.abs(start[0] - end[0]) > 25;
   const arcDeflection = isLongRange ? 4.8 : 0.85;
@@ -562,34 +151,27 @@ function generateCurvedArc(start, end, numPoints = 40) {
   return points;
 }
 
-// Initialize MapLibre GL JS Dark-Matter Vector Radar
-function initMapLibreRadar() {
+// Initialize MapLibre GL Vector Radar
+export function initMapLibreRadar(): void {
   const container = document.getElementById('tactical-map-container') || document.getElementById('radar-canvas-container');
   if (!container) return;
 
-  if (typeof maplibregl === 'undefined') {
-    console.warn('[MAPLIBRE GL] Library not loaded yet, retrying in 300ms...');
-    setTimeout(initMapLibreRadar, 300);
-    return;
-  }
-
-  // Carto Dark Matter Vector Map Style
   const cartoDarkStyle = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
 
   try {
     map = new maplibregl.Map({
       container: container,
       style: cartoDarkStyle,
-      center: [55.3657, 25.2532], // Centered at OMDB / Dubai International
+      center: [55.3657, 25.2532], // Centered on OMDB / DXB
       zoom: 9.0,
-      pitch: 45, // Requested tilted 3D pitch
+      pitch: 45, // Tilted 3D pitch
       bearing: -20,
       antialias: true,
       attributionControl: false
     });
 
-    // Update HUD metrics on map camera move
     map.on('move', () => {
+      if (!map) return;
       const pitchEl = document.getElementById('radar-pitch-display');
       const bearingEl = document.getElementById('radar-bearing-display');
       const zoomEl = document.getElementById('radar-zoom-level');
@@ -608,9 +190,8 @@ function initMapLibreRadar() {
       startAzimuthSweepSimulation();
     });
 
-    // Handle map load errors gracefully with dark fallback styling
     map.on('error', (e) => {
-      console.warn('[MAPLIBRE EVENT WARNING]', e);
+      console.warn('[MAPLIBRE WARNING]', e);
     });
 
   } catch (err) {
@@ -619,31 +200,30 @@ function initMapLibreRadar() {
 }
 
 // Add Range Rings GeoJSON Layers (25NM, 50NM, 100NM centered on DXB)
-function addRangeRingsLayers() {
+function addRangeRingsLayers(): void {
   if (!map) return;
-  const dxbCenter = [55.3657, 25.2532];
-  // 1 NM = 1.852 km: 25NM = 46.3km, 50NM = 92.6km, 100NM = 185.2km
+  const dxbCenter: [number, number] = [55.3657, 25.2532];
   const ring25 = createRangeRingCoordinates(dxbCenter, 46.3);
   const ring50 = createRangeRingCoordinates(dxbCenter, 92.6);
   const ring100 = createRangeRingCoordinates(dxbCenter, 185.2);
 
   const rangeRingsGeoJSON = {
-    type: 'FeatureCollection',
+    type: 'FeatureCollection' as const,
     features: [
       {
-        type: 'Feature',
+        type: 'Feature' as const,
         properties: { name: '25 NM RING', color: '#22d3ee', opacity: 0.65, width: 1.5 },
-        geometry: { type: 'LineString', coordinates: ring25 }
+        geometry: { type: 'LineString' as const, coordinates: ring25 }
       },
       {
-        type: 'Feature',
+        type: 'Feature' as const,
         properties: { name: '50 NM RING', color: '#06b6d4', opacity: 0.5, width: 1.2 },
-        geometry: { type: 'LineString', coordinates: ring50 }
+        geometry: { type: 'LineString' as const, coordinates: ring50 }
       },
       {
-        type: 'Feature',
+        type: 'Feature' as const,
         properties: { name: '100 NM RING', color: '#0e7490', opacity: 0.4, width: 1.0 },
-        geometry: { type: 'LineString', coordinates: ring100 }
+        geometry: { type: 'LineString' as const, coordinates: ring100 }
       }
     ]
   };
@@ -669,15 +249,15 @@ function addRangeRingsLayers() {
 }
 
 // Add Animated GeoJSON Flight Path Arcs connecting Origin & Destination Hubs
-function addFlightPathArcLayers() {
+function addFlightPathArcLayers(): void {
   if (!map) return;
-  const hubCoords = {};
-  AIRPORT_HUBS.forEach(h => {
-    const key = h.code.split('/')[1]?.trim() || h.code.split('/')[0]?.trim();
+  const hubCoords: Record<string, [number, number]> = {};
+  AIRPORT_HUBS.forEach((h) => {
+    const key = h.code.split('/')[1]?.trim() ?? h.code.split('/')[0]?.trim() ?? h.code;
     hubCoords[key] = h.coords;
   });
 
-  const corridorConnections = [
+  const corridorConnections: FlightArcDefinition[] = [
     { from: 'FRA', to: 'DXB', color: '#22d3ee', callsign: 'EK-902' },
     { from: 'ORD', to: 'DXB', color: '#22d3ee', callsign: 'ATLAS-81' },
     { from: 'LEJ', to: 'DWC', color: '#10b981', callsign: 'DHL-109' },
@@ -689,10 +269,17 @@ function addFlightPathArcLayers() {
     { from: 'LHR', to: 'DXB', color: '#22d3ee', callsign: 'BAW-208' },
   ];
 
-  const arcFeatures = [];
+  const arcFeatures: Array<{
+    type: 'Feature';
+    properties: { from: string; to: string; color: string; callsign: string };
+    geometry: { type: 'LineString'; coordinates: [number, number][] };
+  }> = [];
+
   corridorConnections.forEach((conn) => {
-    if (hubCoords[conn.from] && hubCoords[conn.to]) {
-      const arcPoints = generateCurvedArc(hubCoords[conn.from], hubCoords[conn.to]);
+    const fromCoord = hubCoords[conn.from];
+    const toCoord = hubCoords[conn.to];
+    if (fromCoord && toCoord) {
+      const arcPoints = generateCurvedArc(fromCoord, toCoord);
       arcFeatures.push({
         type: 'Feature',
         properties: {
@@ -718,7 +305,6 @@ function addFlightPathArcLayers() {
       }
     });
 
-    // Glowing Blur Layer
     map.addLayer({
       id: 'flight-arcs-glow',
       type: 'line',
@@ -731,7 +317,6 @@ function addFlightPathArcLayers() {
       }
     });
 
-    // Sharp Dashed Tactical Core Line
     map.addLayer({
       id: 'flight-arcs-core',
       type: 'line',
@@ -747,18 +332,19 @@ function addFlightPathArcLayers() {
 }
 
 // Render Glowing Cyan / Emerald Airport Beacons (OMDB, OMDW, OTHH, EGLL, WSSS, etc.)
-function renderHubBeaconMarkers() {
+function renderHubBeaconMarkers(): void {
   if (!map) return;
-  hubMarkers.forEach(m => m.remove());
+  hubMarkers.forEach((m) => m.remove());
   hubMarkers = [];
 
   AIRPORT_HUBS.forEach((hub) => {
     const el = document.createElement('div');
     el.className = 'tactical-hub-beacon';
+    const shortLabel = hub.code.split('/')[1]?.trim() ?? hub.code;
     el.innerHTML = `
       <div class="hub-beacon-pulse ${hub.isPrimary ? 'primary' : ''}"></div>
       <div class="hub-beacon-core ${hub.isPrimary ? 'primary' : ''}"></div>
-      <div class="hub-beacon-label ${hub.isPrimary ? 'primary' : ''}">${hub.code.split('/')[1]?.trim() || hub.code}</div>
+      <div class="hub-beacon-label ${hub.isPrimary ? 'primary' : ''}">${shortLabel}</div>
     `;
 
     const popupHtml = `
@@ -782,14 +368,14 @@ function renderHubBeaconMarkers() {
     const marker = new maplibregl.Marker({ element: el })
       .setLngLat(hub.coords)
       .setPopup(popup)
-      .addTo(map);
+      .addTo(map!);
 
     hubMarkers.push(marker);
   });
 }
 
 // Render Moving Aircraft Markers with Clickable Popups
-function renderMovingAircraftMarkers() {
+function renderMovingAircraftMarkers(): void {
   if (!map) return;
 
   FLIGHTS_DATA.forEach((flight) => {
@@ -806,12 +392,12 @@ function renderMovingAircraftMarkers() {
       riskPillClass = 'bg-red-950 text-red-400 border border-red-600';
     }
 
-    if (aircraftMarkers[flight.id]) {
-      const markerObj = aircraftMarkers[flight.id];
-      markerObj.marker.setLngLat([flight.lng, flight.lat]);
-      const iconBox = markerObj.el.querySelector('.plane-icon-box');
+    const existing = aircraftMarkers[flight.id];
+    if (existing) {
+      existing.marker.setLngLat([flight.lng, flight.lat]);
+      const iconBox = existing.el.querySelector('.plane-icon-box') as HTMLElement | null;
       if (iconBox) {
-        iconBox.style.transform = `rotate(${flight.heading || 0}deg)`;
+        iconBox.style.transform = `rotate(${flight.heading}deg)`;
       }
       return;
     }
@@ -819,7 +405,7 @@ function renderMovingAircraftMarkers() {
     const el = document.createElement('div');
     el.className = 'tactical-plane-marker';
     el.innerHTML = `
-      <div class="plane-icon-box" style="transform: rotate(${flight.heading || 0}deg);">
+      <div class="plane-icon-box" style="transform: rotate(${flight.heading}deg);">
         <svg class="plane-icon-svg" viewBox="0 0 24 24" fill="${colorHex}">
           <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/>
         </svg>
@@ -858,18 +444,18 @@ function renderMovingAircraftMarkers() {
     const marker = new maplibregl.Marker({ element: el })
       .setLngLat([flight.lng, flight.lat])
       .setPopup(popup)
-      .addTo(map);
+      .addTo(map!);
 
     aircraftMarkers[flight.id] = { marker, el, flight };
   });
 }
 
 // Smooth Continuous Movement Loop for Active Vectors
-function startAircraftMovementLoop() {
+function startAircraftMovementLoop(): void {
   if (movementInterval) clearInterval(movementInterval);
   movementInterval = setInterval(() => {
     FLIGHTS_DATA.forEach((flight) => {
-      const rad = ((flight.heading || 90) * Math.PI) / 180;
+      const rad = (flight.heading * Math.PI) / 180;
       const speedFactor = 0.00035 * (flight.speed / 450);
       flight.lng += Math.sin(rad) * speedFactor;
       flight.lat += Math.cos(rad) * speedFactor;
@@ -880,15 +466,16 @@ function startAircraftMovementLoop() {
       if (flight.lat > 26.1) flight.lat = 24.7;
       if (flight.lat < 24.6) flight.lat = 25.6;
 
-      if (aircraftMarkers[flight.id]) {
-        aircraftMarkers[flight.id].marker.setLngLat([flight.lng, flight.lat]);
+      const markerObj = aircraftMarkers[flight.id];
+      if (markerObj) {
+        markerObj.marker.setLngLat([flight.lng, flight.lat]);
       }
     });
   }, 1200);
 }
 
 // Tactical Azimuth Sweep Compass Simulator
-function startAzimuthSweepSimulation() {
+function startAzimuthSweepSimulation(): void {
   setInterval(() => {
     currentSweepAzimuth = (currentSweepAzimuth + 2) % 360;
     const azEl = document.getElementById('radar-azimuth');
@@ -899,20 +486,20 @@ function startAzimuthSweepSimulation() {
 }
 
 // Camera Controls: Recenter, 3D Pitch / 2D Plan Scope, Zoom
-function recenterRadar(playSound = true) {
+export function recenterRadar(playSound: boolean = true): void {
   if (playSound) audio.playClick();
   if (map) {
     map.flyTo({
       center: [55.3657, 25.2532],
       zoom: 9.0,
-      pitch: 45,
-      bearing: -20,
+      pitch: radarViewMode === '3d' ? 45 : 0,
+      bearing: radarViewMode === '3d' ? -20 : 0,
       duration: 1800
     });
   }
 }
 
-function zoomRadar(factor) {
+export function zoomRadar(factor: number): void {
   audio.playClick();
   if (map) {
     if (factor > 1) {
@@ -923,7 +510,7 @@ function zoomRadar(factor) {
   }
 }
 
-function setRadarViewMode(mode) {
+export function setRadarViewMode(mode: '3d' | '2d'): void {
   audio.playClick();
   radarViewMode = mode;
   const btn3D = document.getElementById('btn-mode-3d');
@@ -944,13 +531,13 @@ function setRadarViewMode(mode) {
   }
 }
 
-function toggleLayer(layer) {
+export function toggleLayer(layer: 'vectors' | 'sweep'): void {
   audio.playClick();
   layersState[layer] = !layersState[layer];
   const btn = document.getElementById(`btn-toggle-${layer}`);
 
   if (layer === 'vectors') {
-    Object.values(aircraftMarkers).forEach(m => {
+    Object.values(aircraftMarkers).forEach((m) => {
       m.el.style.display = layersState.vectors ? 'flex' : 'none';
     });
   }
@@ -969,8 +556,8 @@ function toggleLayer(layer) {
   }
 }
 
-// Fallback compatibility for any legacy callers
-function createFlightArcsAndVectors() {
+// Fallback compatibility
+export function createFlightArcsAndVectors(): void {
   if (mapInitialized) {
     renderMovingAircraftMarkers();
   }
@@ -978,13 +565,13 @@ function createFlightArcsAndVectors() {
 
 // ==================== LIVE BACKEND SYNCHRONIZATION ====================
 
-async function fetchLiveBackendTelemetry() {
+export async function fetchLiveBackendTelemetry(): Promise<void> {
   try {
     const res = await fetch(`/api/v1/corridor/live?corridor_id=${activeCorridorKey}`, {
       headers: { 'x-api-key': activeApiKey }
     });
     if (res.ok) {
-      const data = await res.json();
+      const data: LiveSyncResponse = await res.json();
       const corridor = data.corridor;
       const weather = data.weather;
       const stats = data.cache_stats;
@@ -994,25 +581,24 @@ async function fetchLiveBackendTelemetry() {
       if (vecEl && corridor.activeVectors) vecEl.textContent = corridor.activeVectors.toLocaleString();
 
       const riskEl = document.getElementById('metric-risk-index');
-      if (riskEl && corridor.riskIndex) riskEl.textContent = Number(corridor.riskIndex).toFixed(1);
+      if (riskEl && corridor.riskIndex !== undefined) riskEl.textContent = Number(corridor.riskIndex).toFixed(1);
 
       const tputEl = document.getElementById('metric-throughput');
-      if (tputEl && corridor.throughputTonnesPerHour) tputEl.textContent = Number(corridor.throughputTonnesPerHour).toFixed(1);
+      if (tputEl && corridor.throughputTonnesPerHour !== undefined) tputEl.textContent = Number(corridor.throughputTonnesPerHour).toFixed(1);
 
       const dirEl = document.getElementById('metric-directives');
-      if (dirEl && corridor.autonomousDirectivesCount) dirEl.textContent = corridor.autonomousDirectivesCount;
+      if (dirEl && corridor.autonomousDirectivesCount !== undefined) dirEl.textContent = String(corridor.autonomousDirectivesCount);
 
       // Update Overall Risk Gauge
       const gaugeValEl = document.getElementById('risk-gauge-val');
       const gaugeArc = document.getElementById('risk-gauge-arc');
+      const val = corridor.overallRiskGauge || 28;
       if (gaugeValEl) {
-        const val = corridor.overallRiskGauge || 28;
         gaugeValEl.textContent = `${Math.round(val)}%`;
       }
       if (gaugeArc) {
-        const val = corridor.overallRiskGauge || 28;
         const targetOffset = 301.59 - (301.59 * (val / 100) * 0.82);
-        gaugeArc.style.strokeDashoffset = targetOffset;
+        gaugeArc.style.strokeDashoffset = String(targetOffset);
       }
 
       // Update weather & windshear bar
@@ -1028,7 +614,9 @@ async function fetchLiveBackendTelemetry() {
       if (dbText && stats.db_engine) {
         dbText.textContent = stats.db_engine.toUpperCase();
         if (dbDot) {
-          dbDot.className = stats.db_engine.includes('Postgre') ? 'w-2 h-2 rounded-full bg-cyan-400 animate-pulse' : 'w-2 h-2 rounded-full bg-emerald-400';
+          dbDot.className = stats.db_engine.includes('Postgre')
+            ? 'w-2 h-2 rounded-full bg-cyan-400 animate-pulse'
+            : 'w-2 h-2 rounded-full bg-emerald-400';
         }
       }
 
@@ -1047,96 +635,85 @@ async function fetchLiveBackendTelemetry() {
       headers: { 'x-api-key': activeApiKey }
     });
     if (flightRes.ok) {
-      const flightData = await flightRes.json();
+      const flightData: { count: number; flights: FlightVector[] } = await flightRes.json();
       if (flightData.flights && flightData.flights.length > 0) {
         FLIGHTS_DATA = flightData.flights;
         renderFlightFeed();
         createFlightArcsAndVectors();
       }
     }
-  } catch (e) {}
+  } catch (e) {
+    // ignore
+  }
 }
 
 // Render Live Flight Sidebar Feed
-function renderFlightFeed() {
+export function renderFlightFeed(): void {
   const container = document.getElementById('flight-feed-list');
   if (!container) return;
 
-  const searchQuery = (document.getElementById('flight-search')?.value || '').toLowerCase();
+  const searchInput = document.getElementById('flight-search') as HTMLInputElement | null;
+  const searchQuery = (searchInput?.value ?? '').toLowerCase();
 
-  const filtered = FLIGHTS_DATA.filter((flight) => {
+  const filtered = FLIGHTS_DATA.filter((f) => {
+    const matchesFilter = currentFilter === 'all' || f.riskCategory === currentFilter;
     const matchesSearch =
-      flight.callsign.toLowerCase().includes(searchQuery) ||
-      flight.carrier.toLowerCase().includes(searchQuery) ||
-      flight.origin.toLowerCase().includes(searchQuery) ||
-      flight.destination.toLowerCase().includes(searchQuery);
-
-    if (!matchesSearch) return false;
-
-    if (currentFilter === 'watch') return flight.riskScore >= 15;
-    if (currentFilter === 'corridor') return flight.status === 'In Corridor';
-    return true;
+      f.callsign.toLowerCase().includes(searchQuery) ||
+      f.carrier.toLowerCase().includes(searchQuery) ||
+      f.origin.toLowerCase().includes(searchQuery) ||
+      f.destination.toLowerCase().includes(searchQuery);
+    return matchesFilter && matchesSearch;
   });
 
-  const countEl = document.getElementById('active-flight-count');
-  if (countEl) countEl.textContent = filtered.length;
+  const countBadge = document.getElementById('feed-count-badge');
+  if (countBadge) {
+    countBadge.textContent = `${filtered.length} VECTORS`;
+  }
 
-  container.innerHTML = filtered
-    .map((flight) => {
-      let badgeClass = 'bg-emerald-950/80 text-emerald-400 border-emerald-700/60';
-      if (flight.riskCategory === 'watch') {
-        badgeClass = 'bg-cyan-950/80 text-cyan-300 border-cyan-700/60';
-      } else if (flight.riskCategory === 'elevated') {
-        badgeClass = 'bg-amber-950/80 text-amber-300 border-amber-700/60';
-      }
+  container.innerHTML = filtered.map((flight) => {
+    let riskBadgeColor = 'text-emerald-400 bg-emerald-950/80 border-emerald-800';
+    let cardBorder = 'border-slate-800/80 hover:border-cyan-500/40';
 
-      const isCorrected = flight.status === 'Vector Corrected';
-      const statusPill = isCorrected
-        ? '<span class="text-[9px] px-1.5 py-0.2 rounded bg-cyan-900/60 text-cyan-300 font-bold border border-cyan-600/40">DECONFLICTED</span>'
-        : `<span class="text-[9px] px-1.5 py-0.2 rounded bg-slate-800 text-slate-300">${flight.status}</span>`;
+    if (flight.riskCategory === 'watch') {
+      riskBadgeColor = 'text-cyan-400 bg-cyan-950/80 border-cyan-800';
+    } else if (flight.riskCategory === 'elevated') {
+      riskBadgeColor = 'text-amber-400 bg-amber-950/80 border-amber-800';
+      cardBorder = 'border-amber-500/30 hover:border-amber-400/60 bg-amber-950/10';
+    } else if (flight.riskCategory === 'critical') {
+      riskBadgeColor = 'text-red-400 bg-red-950/80 border-red-800';
+      cardBorder = 'border-red-500/40 hover:border-red-400/80 bg-red-950/20';
+    }
 
-      return `
-      <div onclick="window.openFlightModal('${flight.id}')" 
-           class="p-2.5 rounded-lg bg-obsidian-850/80 border border-slate-800/90 hover:border-cyan-400/60 hover:bg-obsidian-800 transition-all cursor-pointer group">
-        
-        <div class="flex items-center justify-between font-mono mb-1">
-          <div class="flex items-center space-x-1.5">
-            <span class="w-1.5 h-1.5 rounded-full ${flight.riskCategory === 'elevated' ? 'bg-amber-400 animate-ping' : 'bg-cyan-400'}"></span>
-            <span class="text-xs font-bold text-white group-hover:text-cyan-300 transition-colors">${flight.callsign}</span>
-            <span class="text-[10px] text-slate-400">(${flight.aircraft})</span>
-          </div>
-          <span class="px-1.5 py-0.5 rounded text-[10px] font-bold font-telemetry border ${badgeClass}">
-            ${Number(flight.riskScore).toFixed(1)}% RISK
-          </span>
-        </div>
-
-        <div class="flex items-center justify-between text-[11px] font-mono text-slate-400">
+    return `
+      <div onclick="window.openFlightModal('${flight.id}')" class="p-3 rounded-lg obsidian-card ${cardBorder} cursor-pointer transition-all hover:scale-[1.01] group relative">
+        <div class="flex items-center justify-between mb-1">
           <div class="flex items-center space-x-2">
-            <span class="text-white font-semibold">${flight.origin}</span>
-            <span class="text-cyan-400">➔</span>
-            <span class="text-white font-semibold">${flight.destination}</span>
-            <span class="text-slate-600">|</span>
-            <span class="text-slate-300 font-telemetry">${flight.flightLevel}</span>
+            <span class="font-extrabold text-white text-xs font-mono group-hover:text-cyan-300 transition-colors">${flight.callsign}</span>
+            <span class="text-[10px] text-slate-400 font-mono">${flight.aircraft}</span>
           </div>
-          <div class="font-telemetry text-slate-300">
-            ${flight.speed} kts
+          <div class="px-1.5 py-0.5 rounded text-[10px] font-bold font-mono border ${riskBadgeColor}">
+            ${flight.riskScore.toFixed(1)}% CRI
           </div>
         </div>
-
-        <div class="mt-1.5 flex items-center justify-between text-[10px] font-mono">
-          <span class="text-slate-500 truncate max-w-[170px]">${flight.carrier}</span>
-          ${statusPill}
+        <div class="flex items-center justify-between text-[11px] text-slate-400 font-mono mb-2">
+          <span>${flight.carrier}</span>
+          <span class="text-slate-300 font-semibold">${flight.origin} → ${flight.destination}</span>
+        </div>
+        <div class="grid grid-cols-4 gap-1 text-[10px] font-mono bg-obsidian-900/60 p-1.5 rounded border border-slate-800/60 text-slate-300">
+          <div><span class="text-slate-500 block">ALT</span>${flight.flightLevel}</div>
+          <div><span class="text-slate-500 block">SPD</span>${flight.speed}kt</div>
+          <div><span class="text-slate-500 block">MACH</span>${flight.mach.toFixed(2)}</div>
+          <div class="text-right"><span class="text-slate-500 block">HDG</span>${flight.heading}°</div>
         </div>
       </div>
     `;
-    })
-    .join('');
+  }).join('');
 }
 
-function setFlightFilter(filter) {
+export function setFlightFilter(filter: string): void {
   audio.playClick();
   currentFilter = filter;
-  ['all', 'watch', 'corridor'].forEach((f) => {
+  ['all', 'minimal', 'low', 'watch', 'elevated'].forEach((f) => {
     const btn = document.getElementById(`filter-btn-${f}`);
     if (btn) {
       if (f === filter) {
@@ -1149,150 +726,150 @@ function setFlightFilter(filter) {
   renderFlightFeed();
 }
 
-function filterFlights() {
+export function filterFlights(): void {
   renderFlightFeed();
 }
 
-function handleCorridorChange(corridorKey) {
+export function handleCorridorChange(corridorKey: string): void {
   audio.playClick();
   activeCorridorKey = corridorKey;
   fetchLiveBackendTelemetry();
 
-  if (map && CORRIDOR_CAMERA_TARGETS[corridorKey]) {
-    map.flyTo(CORRIDOR_CAMERA_TARGETS[corridorKey]);
+  const preset = CORRIDOR_CAMERA_TARGETS[corridorKey];
+  if (map && preset) {
+    map.flyTo(preset);
   }
 }
 
-function toggleAudioFeedback() {
+export function toggleAudioFeedback(): void {
   audio.enabled = !audio.enabled;
   const onIcon = document.getElementById('audio-icon-on');
   const offIcon = document.getElementById('audio-icon-off');
   if (audio.enabled) {
-    onIcon.classList.remove('hidden');
-    offIcon.classList.add('hidden');
+    onIcon?.classList.remove('hidden');
+    offIcon?.classList.add('hidden');
     audio.playClick();
   } else {
-    onIcon.classList.add('hidden');
-    offIcon.classList.remove('hidden');
+    onIcon?.classList.add('hidden');
+    offIcon?.classList.remove('hidden');
   }
 }
 
-function updateClocks() {
+// Clock updates
+function updateClocks(): void {
   const now = new Date();
-  const gstHours = (now.getUTCHours() + 4) % 24;
-  const pad = (n) => String(n).padStart(2, '0');
-
-  const gstStr = `${pad(gstHours)}:${pad(now.getUTCMinutes())}:${pad(now.getUTCSeconds())} GST`;
-  const utcStr = `${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())}:${pad(now.getUTCSeconds())} Z`;
-
   const gstEl = document.getElementById('clock-gst');
   const utcEl = document.getElementById('clock-utc');
-  if (gstEl) gstEl.textContent = gstStr;
-  if (utcEl) utcEl.textContent = utcStr;
+
+  if (gstEl) {
+    const gstTime = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Asia/Dubai',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    }).format(now);
+    gstEl.textContent = `${gstTime} GST`;
+  }
+
+  if (utcEl) {
+    const utcTime = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'UTC',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    }).format(now);
+    utcEl.textContent = `${utcTime} Z`;
+  }
 }
 
-// Flight Telemetry Dossier Modal
-function openFlightModal(flightId) {
-  audio.playClick();
+// ==================== MODALS & TACTICAL DOSSIERS ====================
+
+export function openFlightModal(flightId: string): void {
   const flight = FLIGHTS_DATA.find((f) => f.id === flightId);
   if (!flight) return;
   selectedFlight = flight;
-
-  document.getElementById('modal-callsign').textContent = flight.callsign;
-  document.getElementById('modal-carrier').textContent = `${flight.carrier} • ${flight.aircraft}`;
-  document.getElementById('modal-fl').textContent = flight.flightLevel;
-  document.getElementById('modal-speed').textContent = `${flight.speed} kts (M ${flight.mach || 0.8})`;
-  document.getElementById('modal-heading').textContent = `${flight.heading}° TRK`;
-  document.getElementById('modal-transponder').textContent = flight.transponder;
-  document.getElementById('modal-origin').textContent = `${flight.origin} (${flight.originCity || ''})`;
-  document.getElementById('modal-destination').textContent = `${flight.destination} (${flight.destinationCity || ''})`;
-  document.getElementById('modal-eta').textContent = `ETA: ${flight.etaMinutes} mins to ${flight.destination}`;
-  document.getElementById('modal-cargo').textContent = `${flight.cargoPayload} - ${flight.cargoWeightTonnes} Tonnes`;
-  document.getElementById('modal-hazard').textContent = flight.hazardNote || 'Nominal trajectory envelope. No wake vortex or windshear anomalies detected.';
-
-  const badge = document.getElementById('modal-risk-badge');
-  badge.textContent = `${Number(flight.riskScore).toFixed(1)}% ${flight.riskCategory.toUpperCase()}`;
-  if (flight.riskCategory === 'watch') {
-    badge.className = 'px-2 py-0.5 rounded text-xs font-bold bg-cyan-950 text-cyan-300 border border-cyan-600';
-  } else if (flight.riskCategory === 'elevated') {
-    badge.className = 'px-2 py-0.5 rounded text-xs font-bold bg-amber-950 text-amber-300 border border-amber-600';
-  } else {
-    badge.className = 'px-2 py-0.5 rounded text-xs font-bold bg-emerald-950 text-emerald-400 border border-emerald-600';
-  }
-
-  const deconflictBtn = document.getElementById('modal-deconflict-btn');
-  if (flight.status === 'Vector Corrected') {
-    deconflictBtn.textContent = 'ALREADY OPTIMIZED (DECONFLICTED)';
-    deconflictBtn.disabled = true;
-    deconflictBtn.className = 'px-4 py-1.5 rounded bg-slate-800 text-slate-500 font-bold text-xs cursor-not-allowed';
-  } else {
-    deconflictBtn.textContent = 'EXECUTE AI VECTOR DECONFLICTION';
-    deconflictBtn.disabled = false;
-    deconflictBtn.className = 'px-4 py-1.5 rounded bg-cyan-500 text-obsidian-950 font-bold hover:bg-cyan-400 text-xs shadow-glow-cyan transition-colors';
-  }
-
-  document.getElementById('flight-modal').classList.remove('hidden');
-}
-
-function closeFlightModal() {
   audio.playClick();
-  document.getElementById('flight-modal').classList.add('hidden');
+
+  const modal = document.getElementById('flight-dossier-modal');
+  if (!modal) return;
+
+  const setText = (id: string, text: string) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+  };
+
+  setText('modal-callsign', flight.callsign);
+  setText('modal-carrier', flight.carrier);
+  setText('modal-aircraft', flight.aircraft);
+  setText('modal-route', `${flight.origin} (${flight.originCity}) → ${flight.destination} (${flight.destinationCity})`);
+  setText('modal-altitude', `${flight.altitude.toLocaleString()} FT (${flight.flightLevel})`);
+  setText('modal-speed', `${flight.speed} KTS / Mach ${flight.mach.toFixed(2)}`);
+  setText('modal-heading', `${flight.heading}° TRUE`);
+  setText('modal-coords', `${flight.lat.toFixed(4)}°N, ${flight.lng.toFixed(4)}°E`);
+  setText('modal-transponder', flight.transponder);
+  setText('modal-payload', `${flight.cargoPayload} (${flight.cargoWeightTonnes} Tonnes)`);
+  setText('modal-eta', `${flight.etaMinutes} MINS`);
+  setText('modal-hazard-note', flight.hazardNote ?? 'Nominal flight envelope confirmed.');
+
+  const riskBadge = document.getElementById('modal-risk-badge');
+  if (riskBadge) {
+    riskBadge.textContent = `${flight.riskScore.toFixed(1)}% CRI`;
+    riskBadge.className = `px-2 py-0.5 rounded text-xs font-bold font-mono border ${
+      flight.riskCategory === 'critical' || flight.riskCategory === 'elevated'
+        ? 'bg-red-950 text-red-400 border-red-700'
+        : flight.riskCategory === 'watch'
+          ? 'bg-cyan-950 text-cyan-300 border-cyan-700'
+          : 'bg-emerald-950 text-emerald-400 border-emerald-700'
+    }`;
+  }
+
+  modal.classList.remove('hidden');
 }
 
-async function executeFlightDeconfliction() {
+export function closeFlightModal(): void {
+  audio.playClick();
+  const modal = document.getElementById('flight-dossier-modal');
+  modal?.classList.add('hidden');
+}
+
+export async function executeFlightDeconfliction(): Promise<void> {
   if (!selectedFlight) return;
-  audio.playChime();
+  audio.playDirectiveChime();
 
   try {
     const res = await fetch('/api/v1/directives/evaluate', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': activeApiKey
+        'x-api-key': activeApiKey,
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         flight_id: selectedFlight.id,
         callsign: selectedFlight.callsign,
-        target_action: 'VORTEX_SEPARATION_LAMINAR_STEP'
+        target_action: 'AUTONOMOUS_VECTOR_DECONFLICTION'
       })
     });
 
     if (res.ok) {
       const data = await res.json();
-      const updated = data.flight_telemetry;
-      selectedFlight.riskScore = updated.riskScore;
-      selectedFlight.riskCategory = updated.riskCategory;
-      selectedFlight.status = updated.status;
-      selectedFlight.hazardNote = updated.hazardNote;
-
-      const newDirective = {
-        id: data.directive.id,
-        time: 'JUST NOW',
-        flight: selectedFlight.callsign,
-        action: data.directive.action,
-        text: data.directive.description,
-        reduction: `${data.directive.riskReduction}%`,
-        confidence: `${data.directive.confidence}%`
-      };
-      DIRECTIVES_LOG.unshift(newDirective);
-
-      const timeEl = document.getElementById('latest-directive-time');
-      const textEl = document.getElementById('latest-directive-text');
-      if (timeEl) timeEl.textContent = newDirective.time;
-      if (textEl) textEl.textContent = newDirective.text;
+      selectedFlight.riskScore = data.flight_telemetry.riskScore;
+      selectedFlight.riskCategory = data.flight_telemetry.riskCategory;
+      selectedFlight.status = 'Vector Corrected';
+      selectedFlight.hazardNote = data.flight_telemetry.hazardNote;
 
       createFlightArcsAndVectors();
       renderFlightFeed();
       closeFlightModal();
       return;
     }
-  } catch (e) {
-    console.warn('[BACKEND DIRECTIVE POST FAILED]', e);
+  } catch {
+    // fallback local resolution
   }
 
-  // Fallback local calculation
-  selectedFlight.riskScore = Math.max(3.2, selectedFlight.riskScore - 14.5);
-  selectedFlight.riskCategory = selectedFlight.riskScore < 10 ? 'minimal' : 'low';
+  selectedFlight.riskScore = Math.max(3.2, Number((selectedFlight.riskScore - 14.5).toFixed(1)));
+  selectedFlight.riskCategory = 'minimal';
   selectedFlight.status = 'Vector Corrected';
   selectedFlight.hazardNote = 'AI Resolution applied: Vector stepped down by 2,000 ft; laminar separation restored.';
 
@@ -1301,7 +878,7 @@ async function executeFlightDeconfliction() {
   closeFlightModal();
 }
 
-function focusOnFlightInRadar() {
+export function focusOnFlightInRadar(): void {
   if (!selectedFlight) return;
   audio.playClick();
   closeFlightModal();
@@ -1314,13 +891,14 @@ function focusOnFlightInRadar() {
       bearing: selectedFlight.heading ? (selectedFlight.heading - 45) : -20,
       duration: 1800
     });
-    if (aircraftMarkers[selectedFlight.id] && aircraftMarkers[selectedFlight.id].marker) {
-      aircraftMarkers[selectedFlight.id].marker.togglePopup();
+    const markerObj = aircraftMarkers[selectedFlight.id];
+    if (markerObj?.marker) {
+      markerObj.marker.togglePopup();
     }
   }
 }
 
-function openDirectivesModal() {
+export function openDirectivesModal(): void {
   audio.playClick();
   const listEl = document.getElementById('directives-modal-list');
   if (listEl) {
@@ -1329,61 +907,65 @@ function openDirectivesModal() {
         <div>
           <div class="flex items-center space-x-2">
             <span class="text-xs font-bold text-cyan-400">${d.id}</span>
-            <span class="text-[10px] text-slate-400">${d.time}</span>
+            <span class="text-[10px] text-slate-400">${d.timestamp}</span>
             <span class="px-1.5 py-0.2 rounded bg-cyan-950 text-cyan-300 text-[10px] font-bold border border-cyan-800">${d.action}</span>
           </div>
-          <div class="text-xs text-slate-200 mt-1">${d.text}</div>
+          <div class="text-white text-xs mt-1 font-semibold">${d.callsign}</div>
+          <div class="text-slate-300 text-[11px] mt-0.5">${d.description}</div>
         </div>
-        <div class="text-right pl-3">
-          <span class="text-emerald-400 font-bold block">${d.reduction}</span>
-          <span class="text-[10px] text-slate-400">Conf: ${d.confidence}</span>
+        <div class="text-right">
+          <span class="text-emerald-400 font-bold text-xs">${d.riskReduction < 0 ? d.riskReduction : `-${d.riskReduction}`}%</span>
+          <span class="text-slate-500 text-[10px] block">Risk Delta</span>
         </div>
       </div>
     `).join('');
   }
-  document.getElementById('directives-modal').classList.remove('hidden');
+
+  const modal = document.getElementById('directives-modal');
+  modal?.classList.remove('hidden');
 }
 
-function closeDirectivesModal() {
+export function closeDirectivesModal(): void {
   audio.playClick();
-  document.getElementById('directives-modal').classList.add('hidden');
+  const modal = document.getElementById('directives-modal');
+  modal?.classList.add('hidden');
 }
 
-function triggerDeconflictSimulation() {
-  audio.playChime();
-  const banner = document.getElementById('sim-banner');
-  if (banner) {
-    banner.classList.remove('hidden');
-    setTimeout(() => {
-      banner.classList.add('hidden');
-    }, 6000);
+export function triggerDeconflictSimulation(): void {
+  audio.playWarning();
+  const simBanner = document.getElementById('sim-banner');
+  simBanner?.classList.remove('hidden');
+
+  const target = FLIGHTS_DATA.find((f) => f.callsign === 'FDX-4412') || FLIGHTS_DATA[0];
+  if (target) {
+    target.riskScore = 38.4;
+    target.riskCategory = 'critical';
+    target.hazardNote = 'SEVERE WINDSHEAR ANOMALY AT FL310! Imminent corridor conflict detected.';
+    renderFlightFeed();
+    createFlightArcsAndVectors();
   }
 
-  const gaugeVal = document.getElementById('risk-gauge-val');
-  if (gaugeVal) {
-    gaugeVal.textContent = '22%';
-    gaugeVal.className = 'text-3xl font-extrabold font-telemetry tracking-tight text-emerald-400';
-    setTimeout(() => {
-      gaugeVal.textContent = '28%';
-      gaugeVal.className = 'text-3xl font-extrabold font-telemetry tracking-tight text-white';
-    }, 5000);
-  }
+  setTimeout(() => {
+    simBanner?.classList.add('hidden');
+  }, 10000);
 }
 
-// ==================== ENTERPRISE & API GATEWAY MODAL LOGIC ====================
+// ==================== ENTERPRISE & API PORTAL ====================
 
-function openEnterprisePortal(defaultTab = 'keys') {
+export function openEnterprisePortal(initialTab: string = 'keys'): void {
   audio.playClick();
-  document.getElementById('enterprise-portal-modal').classList.remove('hidden');
-  switchPortalTab(defaultTab);
+  const modal = document.getElementById('enterprise-portal-modal');
+  modal?.classList.remove('hidden');
+  switchPortalTab(initialTab);
 }
 
-function closeEnterprisePortal() {
+export function closeEnterprisePortal(): void {
   audio.playClick();
-  document.getElementById('enterprise-portal-modal').classList.add('hidden');
+  const modal = document.getElementById('enterprise-portal-modal');
+  modal?.classList.add('hidden');
 }
 
-function switchPortalTab(tabName) {
+export function switchPortalTab(tabName: string): void {
   audio.playClick();
   const tabs = ['keys', 'explorer', 'webhooks', 'audit', 'db-config'];
   tabs.forEach((t) => {
@@ -1406,22 +988,20 @@ function switchPortalTab(tabName) {
   if (tabName === 'db-config') loadSystemConfig();
 }
 
-// Helper: Select Commercial B2B Tier
-function selectLicensingTier(tier) {
+export function selectLicensingTier(tier: CommercialTierKey | string): void {
   audio.playClick();
-  const select = document.getElementById('new-key-tier');
+  const select = document.getElementById('new-key-tier') as HTMLSelectElement | null;
   if (select) {
     select.value = tier;
     select.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 }
 
-// 1. Commercial API Keys Management (Strict Paid Licensing)
-async function loadApiKeys() {
+export async function loadApiKeys(): Promise<void> {
   try {
     const res = await fetch('/api/v1/auth/keys');
     if (res.ok) {
-      const data = await res.json();
+      const data: { count: number; keys: ApiKeyRecord[] } = await res.json();
       const tbody = document.getElementById('api-keys-table-body');
       if (tbody && data.keys) {
         tbody.innerHTML = data.keys.map((k) => `
@@ -1461,10 +1041,10 @@ async function loadApiKeys() {
   }
 }
 
-async function generatePartnerApiKey() {
-  const nameInput = document.getElementById('new-key-name');
-  const tierSelect = document.getElementById('new-key-tier');
-  const name = (nameInput?.value || '').trim();
+export async function generatePartnerApiKey(): Promise<void> {
+  const nameInput = document.getElementById('new-key-name') as HTMLInputElement | null;
+  const tierSelect = document.getElementById('new-key-tier') as HTMLSelectElement | null;
+  const name = (nameInput?.value ?? '').trim();
   const licenseType = tierSelect?.value || 'global_cargo_carrier';
 
   if (!name) {
@@ -1472,20 +1052,22 @@ async function generatePartnerApiKey() {
     return;
   }
 
-  audio.playChime();
+  audio.playDirectiveChime();
   try {
+    const payload: CreateKeyRequestPayload = {
+      name,
+      license_type: licenseType,
+      billing_email: ''
+    };
+
     const res = await fetch('/api/v1/auth/keys', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name,
-        license_type: licenseType,
-        billing_email: ''
-      })
+      body: JSON.stringify(payload)
     });
 
     if (res.ok) {
-      const data = await res.json();
+      const data: CreateKeyResponsePayload = await res.json();
       const banner = document.getElementById('new-key-banner');
       const text = document.getElementById('new-key-raw-text');
       const licIdEl = document.getElementById('new-key-license-id');
@@ -1499,7 +1081,7 @@ async function generatePartnerApiKey() {
         if (slaEl) slaEl.textContent = data.sla_uptime || '99.99%';
         banner.classList.remove('hidden');
       }
-      nameInput.value = '';
+      if (nameInput) nameInput.value = '';
       loadApiKeys();
     } else {
       const err = await res.json();
@@ -1510,14 +1092,14 @@ async function generatePartnerApiKey() {
   }
 }
 
-function copyRawApiKey() {
-  const text = document.getElementById('new-key-raw-text')?.textContent || '';
+export function copyRawApiKey(): void {
+  const text = document.getElementById('new-key-raw-text')?.textContent ?? '';
   navigator.clipboard.writeText(text);
   audio.playClick();
   alert('API Key copied to clipboard!');
 }
 
-async function revokeApiKey(keyId) {
+export async function revokeApiKey(keyId: number): Promise<void> {
   if (!confirm('Are you sure you want to revoke this partner API key? It will immediately block all requests.')) return;
   audio.playClick();
   try {
@@ -1530,8 +1112,7 @@ async function revokeApiKey(keyId) {
   }
 }
 
-// 2. Interactive API Explorer & cURL
-async function testApiEndpoint(path, method = 'GET', body = null) {
+export async function testApiEndpoint(path: string, method: string = 'GET', body: unknown = null): Promise<void> {
   audio.playClick();
   const latencyEl = document.getElementById('api-test-latency');
   const responseEl = document.getElementById('api-test-response');
@@ -1542,7 +1123,7 @@ async function testApiEndpoint(path, method = 'GET', body = null) {
 
   const startTime = performance.now();
   try {
-    const options = {
+    const options: RequestInit = {
       method,
       headers: {
         'x-api-key': activeApiKey,
@@ -1568,12 +1149,11 @@ async function testApiEndpoint(path, method = 'GET', body = null) {
   }
 }
 
-// 3. Outbound Webhooks & Alerts
-async function loadWebhooksAndAlerts() {
+export async function loadWebhooksAndAlerts(): Promise<void> {
   try {
     const hookRes = await fetch('/api/v1/webhooks');
     if (hookRes.ok) {
-      const data = await hookRes.json();
+      const data: { count: number; webhooks: WebhookRecord[] } = await hookRes.json();
       const list = document.getElementById('webhooks-list');
       if (list && data.webhooks) {
         if (data.webhooks.length === 0) {
@@ -1596,7 +1176,7 @@ async function loadWebhooksAndAlerts() {
 
     const alertRes = await fetch('/api/v1/alerts/history');
     if (alertRes.ok) {
-      const data = await alertRes.json();
+      const data: { count: number; alerts: DispatchAlertRecord[] } = await alertRes.json();
       const histList = document.getElementById('dispatch-history-list');
       if (histList && data.alerts) {
         if (data.alerts.length === 0) {
@@ -1628,9 +1208,9 @@ async function loadWebhooksAndAlerts() {
   }
 }
 
-async function registerWebhook() {
-  const urlInput = document.getElementById('new-webhook-url');
-  const url = (urlInput?.value || '').trim();
+export async function registerWebhook(): Promise<void> {
+  const urlInput = document.getElementById('new-webhook-url') as HTMLInputElement | null;
+  const url = (urlInput?.value ?? '').trim();
   if (!url || !url.startsWith('http')) {
     alert('Please enter a valid HTTP/HTTPS webhook URL.');
     return;
@@ -1643,7 +1223,7 @@ async function registerWebhook() {
       body: JSON.stringify({ url })
     });
     if (res.ok) {
-      urlInput.value = '';
+      if (urlInput) urlInput.value = '';
       loadWebhooksAndAlerts();
     }
   } catch (e) {
@@ -1651,16 +1231,18 @@ async function registerWebhook() {
   }
 }
 
-async function deleteWebhook(id) {
+export async function deleteWebhook(id: number): Promise<void> {
   audio.playClick();
   try {
     await fetch(`/api/v1/webhooks/${id}`, { method: 'DELETE' });
     loadWebhooksAndAlerts();
-  } catch (e) {}
+  } catch (e) {
+    // ignore
+  }
 }
 
-async function triggerManualTestDispatch() {
-  audio.playChime();
+export async function triggerManualTestDispatch(): Promise<void> {
+  audio.playDirectiveChime();
   try {
     const res = await fetch('/api/v1/alerts/test-dispatch', {
       method: 'POST',
@@ -1676,12 +1258,11 @@ async function triggerManualTestDispatch() {
   }
 }
 
-// 4. Compliance Audits
-async function refreshAuditLogs() {
+export async function refreshAuditLogs(): Promise<void> {
   try {
     const res = await fetch('/api/v1/audit/logs?limit=30');
     if (res.ok) {
-      const data = await res.json();
+      const data: { count: number; logs: ComplianceAuditRecord[] } = await res.json();
       const tbody = document.getElementById('audit-logs-table-body');
       if (tbody && data.logs) {
         tbody.innerHTML = data.logs.map((log) => `
@@ -1702,19 +1283,25 @@ async function refreshAuditLogs() {
   }
 }
 
-// 5. Ingestion Pipeline & PostgreSQL Config
-async function loadSystemConfig() {
+export async function loadSystemConfig(): Promise<void> {
   try {
     const res = await fetch('/api/v1/system/status');
     if (res.ok) {
-      const data = await res.json();
+      const data: SystemStatusResponse = await res.json();
       const db = data.database;
       const stats = data.ingestion_pipeline;
 
-      document.getElementById('cfg-flight-source').textContent = stats.aviationstack_source || 'STREAMING ACTIVE';
-      document.getElementById('cfg-weather-source').textContent = stats.weatherstack_source || 'STREAMING ACTIVE';
-      document.getElementById('cfg-cache-hits').textContent = `${stats.cache_hits || 0} PULLS (${stats.api_call_count || 0} API CALLS)`;
-      document.getElementById('cfg-next-poll').textContent = `${stats.seconds_until_next_poll || 60}s`;
+      const avEl = document.getElementById('cfg-flight-source');
+      if (avEl) avEl.textContent = stats.aviationstack_source || 'STREAMING ACTIVE';
+
+      const wxEl = document.getElementById('cfg-weather-source');
+      if (wxEl) wxEl.textContent = stats.weatherstack_source || 'STREAMING ACTIVE';
+
+      const hitsEl = document.getElementById('cfg-cache-hits');
+      if (hitsEl) hitsEl.textContent = `${stats.cache_hits || 0} PULLS (${stats.api_call_count || 0} API CALLS)`;
+
+      const nextPollEl = document.getElementById('cfg-next-poll');
+      if (nextPollEl) nextPollEl.textContent = `${stats.seconds_until_next_poll || 60}s`;
 
       const badge = document.getElementById('cfg-db-engine-badge');
       if (badge && db.engine) {
@@ -1729,10 +1316,12 @@ async function loadSystemConfig() {
   }
 }
 
-async function saveIngestionApiKeys() {
+export async function saveIngestionApiKeys(): Promise<void> {
   audio.playClick();
-  const avKey = (document.getElementById('cfg-aviationstack-key')?.value || '').trim();
-  const wxKey = (document.getElementById('cfg-weatherstack-key')?.value || '').trim();
+  const avInput = document.getElementById('cfg-aviationstack-key') as HTMLInputElement | null;
+  const wxInput = document.getElementById('cfg-weatherstack-key') as HTMLInputElement | null;
+  const avKey = (avInput?.value ?? '').trim();
+  const wxKey = (wxInput?.value ?? '').trim();
 
   try {
     const res = await fetch('/api/v1/system/api-keys', {
@@ -1753,9 +1342,10 @@ async function saveIngestionApiKeys() {
   }
 }
 
-async function saveDatabaseConfig() {
+export async function saveDatabaseConfig(): Promise<void> {
   audio.playClick();
-  const dbUrl = (document.getElementById('cfg-database-url')?.value || '').trim();
+  const dbInput = document.getElementById('cfg-database-url') as HTMLInputElement | null;
+  const dbUrl = (dbInput?.value ?? '').trim();
   const statusMsg = document.getElementById('cfg-db-status-msg');
 
   if (!dbUrl) {
@@ -1789,22 +1379,25 @@ async function saveDatabaseConfig() {
 }
 
 // Hotkey Navigation
-window.addEventListener('keydown', (e) => {
-  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
+window.addEventListener('keydown', (e: KeyboardEvent) => {
+  const target = e.target as HTMLElement | null;
+  if (target && (target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'TEXTAREA')) return;
 
-  const corridorKeys = ['dxb-primary', 'doh-dxb', 'sin-dxb', 'lhr-dxb', 'dwc-expansion'];
-  if (['1', '2', '3', '4', '5'].includes(e.key)) {
-    const idx = parseInt(e.key, 10) - 1;
-    const select = document.getElementById('corridor-selector');
-    if (select && corridorKeys[idx]) {
-      select.value = corridorKeys[idx];
-      handleCorridorChange(corridorKeys[idx]);
+  const keyNum = parseInt(e.key, 10);
+  if (!isNaN(keyNum) && keyNum >= 1 && keyNum <= 5) {
+    const corridorKeys = ['dxb-primary', 'doh-dxb', 'sin-dxb', 'lhr-dxb', 'dwc-expansion'];
+    const idx = keyNum - 1;
+    const select = document.getElementById('corridor-selector') as HTMLSelectElement | null;
+    const targetKey = corridorKeys[idx];
+    if (select && targetKey) {
+      select.value = targetKey;
+      handleCorridorChange(targetKey);
     }
   } else if (e.key.toLowerCase() === 'r') {
     recenterRadar();
   } else if (e.key.toLowerCase() === 'e') {
     const modal = document.getElementById('enterprise-portal-modal');
-    if (modal.classList.contains('hidden')) {
+    if (modal?.classList.contains('hidden')) {
       openEnterprisePortal();
     } else {
       closeEnterprisePortal();
@@ -1815,9 +1408,9 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
-// Window Bindings
+// Window Bindings for HTML Event Handlers
 window.initMapLibreRadar = initMapLibreRadar;
-window.initThreeRadar = initMapLibreRadar; // Alias for backward compatibility
+window.initThreeRadar = initMapLibreRadar;
 window.selectLicensingTier = selectLicensingTier;
 window.handleCorridorChange = handleCorridorChange;
 window.toggleAudioFeedback = toggleAudioFeedback;
@@ -1834,8 +1427,6 @@ window.focusOnFlightInRadar = focusOnFlightInRadar;
 window.openDirectivesModal = openDirectivesModal;
 window.closeDirectivesModal = closeDirectivesModal;
 window.triggerDeconflictSimulation = triggerDeconflictSimulation;
-
-// Enterprise Portal Window Bindings
 window.openEnterprisePortal = openEnterprisePortal;
 window.closeEnterprisePortal = closeEnterprisePortal;
 window.switchPortalTab = switchPortalTab;
@@ -1865,3 +1456,4 @@ window.addEventListener('DOMContentLoaded', () => {
     fetchLiveBackendTelemetry();
   }, 3000);
 });
+

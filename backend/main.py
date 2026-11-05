@@ -366,6 +366,11 @@ def update_db_config(req: UpdateDbConfigRequest):
 # ==================== STATIC FRONTEND SERVING ====================
 
 BASE_PATH = Path(__file__).resolve().parent.parent
+dist_path = BASE_PATH / "dist"
+
+# Serve production assets if built by Vite
+if (dist_path / "assets").exists():
+    app.mount("/assets", StaticFiles(directory=str(dist_path / "assets")), name="assets")
 
 # Serve src static files
 app.mount("/src", StaticFiles(directory=str(BASE_PATH / "src")), name="src")
@@ -378,6 +383,10 @@ if node_modules_path.exists():
 # Root dashboard route
 @app.get("/", response_class=HTMLResponse)
 def serve_dashboard():
+    dist_index = dist_path / "index.html"
+    if dist_index.exists():
+        with open(dist_index, "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
     index_path = BASE_PATH / "index.html"
     if index_path.exists():
         with open(index_path, "r", encoding="utf-8") as f:

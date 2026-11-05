@@ -1,5 +1,5 @@
 // Tactical Web Audio API synthesizer for Bloomberg-grade Command Center
-class TacticalAudioSystem {
+export class TacticalAudioSystem {
   private ctx: AudioContext | null = null;
   public enabled: boolean = true;
 
