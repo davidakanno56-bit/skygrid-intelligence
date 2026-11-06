@@ -38,6 +38,86 @@ import {
   INITIAL_FLIGHTS,
   INITIAL_DIRECTIVES as DEFAULT_DIRECTIVES
 } from './data/mockData';
+import { apiClient } from './api/client';
+
+export type AppRoute = '/' | '/dashboard';
+
+/**
+ * Resilient Centralized API Fetcher
+ * Routes automatically through VITE_API_BASE_URL (Render backend) or relative path
+ */
+export function apiFetch(path: string, options?: RequestInit): Promise<Response> {
+  const fullUrl = apiClient.getFullUrl(path);
+  return fetch(fullUrl, options);
+}
+
+/**
+ * Client-Side SPA Navigation Router
+ * Seamlessly routes between the Public Landing Page (/) and Command Center (/dashboard)
+ */
+export function navigateTo(route: string, updateHistory = true): void {
+  audio.playClick();
+  const normalizedRoute: AppRoute = (route === '/dashboard' || route.startsWith('/dashboard')) ? '/dashboard' : '/';
+
+  if (updateHistory && typeof window !== 'undefined' && window.location.pathname !== normalizedRoute) {
+    window.history.pushState({}, '', normalizedRoute);
+  }
+
+  const landingEl = document.getElementById('landing-page-view');
+  const dashboardEl = document.getElementById('dashboard-view');
+
+  if (normalizedRoute === '/dashboard') {
+    landingEl?.classList.add('hidden');
+    dashboardEl?.classList.remove('hidden');
+    document.title = 'SkyGrid Intelligence | Live Aviation Command Center | Akanno Tech Labs';
+    
+    // Resize MapLibre canvas on reveal so viewport calculates proper dimensions
+    setTimeout(() => {
+      if (map) {
+        map.resize();
+      } else if (!mapInitialized) {
+        initMapLibreRadar();
+      }
+    }, 150);
+  } else {
+    dashboardEl?.classList.add('hidden');
+    landingEl?.classList.remove('hidden');
+    document.title = 'SkyGrid Intelligence | Sovereign Aviation Risk Intelligence | Akanno Tech Labs';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+}
+
+/**
+ * Transmit Enterprise Partnership Enquiry
+ */
+export function submitPartnershipEnquiry(): void {
+  audio.playDirectiveChime();
+  const nameInput = document.getElementById('enquiry-name') as HTMLInputElement | null;
+  const orgInput = document.getElementById('enquiry-org') as HTMLInputElement | null;
+  const emailInput = document.getElementById('enquiry-email') as HTMLInputElement | null;
+  const messageInput = document.getElementById('enquiry-message') as HTMLTextAreaElement | null;
+  const banner = document.getElementById('enquiry-success-banner');
+  const refIdEl = document.getElementById('enquiry-ref-id');
+  const btn = document.getElementById('btn-enquiry-submit') as HTMLButtonElement | null;
+
+  const randomRef = `AT-ENQ-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+  if (refIdEl) refIdEl.textContent = randomRef;
+
+  if (banner) {
+    banner.classList.remove('hidden');
+    banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  if (btn) {
+    btn.innerHTML = '<span>✓ ENQUIRY TRANSMITTED</span>';
+    btn.classList.add('opacity-75');
+  }
+
+  if (nameInput) nameInput.value = '';
+  if (orgInput) orgInput.value = '';
+  if (emailInput) emailInput.value = '';
+  if (messageInput) messageInput.value = '';
+}
 
 // Map of Air Corridors indexed by ID
 const CORRIDOR_MAP: Record<string, CorridorMetric> = {};
@@ -567,7 +647,7 @@ export function createFlightArcsAndVectors(): void {
 
 export async function fetchLiveBackendTelemetry(): Promise<void> {
   try {
-    const res = await fetch(`/api/v1/corridor/live?corridor_id=${activeCorridorKey}`, {
+    const res = await apiFetch(`/api/v1/corridor/live?corridor_id=${activeCorridorKey}`, {
       headers: { 'x-api-key': activeApiKey }
     });
     if (res.ok) {
@@ -631,7 +711,7 @@ export async function fetchLiveBackendTelemetry(): Promise<void> {
 
   // Fetch Live Flights Telemetry
   try {
-    const flightRes = await fetch('/api/v1/telemetry/flights', {
+    const flightRes = await apiFetch('/api/v1/telemetry/flights', {
       headers: { 'x-api-key': activeApiKey }
     });
     if (flightRes.ok) {
@@ -839,7 +919,7 @@ export async function executeFlightDeconfliction(): Promise<void> {
   audio.playDirectiveChime();
 
   try {
-    const res = await fetch('/api/v1/directives/evaluate', {
+    const res = await apiFetch('/api/v1/directives/evaluate', {
       method: 'POST',
       headers: {
         'x-api-key': activeApiKey,
@@ -1114,7 +1194,7 @@ export function switchPortalTab(tabName: string): void {
 
 export async function loadApiKeys(): Promise<void> {
   try {
-    const res = await fetch('/api/v1/auth/keys');
+    const res = await apiFetch('/api/v1/auth/keys');
     if (res.ok) {
       const data: { count: number; keys: ApiKeyRecord[] } = await res.json();
       const tbody = document.getElementById('api-keys-table-body');
@@ -1187,7 +1267,7 @@ export async function initiateEnterpriseCheckout(): Promise<void> {
       payment_method: currentPaymentRail
     };
 
-    const res = await fetch('/api/v1/billing/checkout/initiate', {
+    const res = await apiFetch('/api/v1/billing/checkout/initiate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -1247,7 +1327,7 @@ export async function completeEnterpriseOrder(): Promise<void> {
 
   audio.playDirectiveChime();
   try {
-    const res = await fetch('/api/v1/billing/checkout/complete', {
+    const res = await apiFetch('/api/v1/billing/checkout/complete', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ order_ref: activeOrderRef })
@@ -1295,7 +1375,7 @@ export function downloadCurrentInvoice(): void {
     return;
   }
   audio.playClick();
-  window.open(`/api/v1/billing/invoice/${activeOrderRef}`, '_blank');
+  window.open(apiClient.getInvoiceUrl(activeOrderRef), '_blank');
 }
 
 export function generatePartnerApiKey(): void {
@@ -1313,7 +1393,7 @@ export async function revokeApiKey(keyId: number): Promise<void> {
   if (!confirm('Are you sure you want to revoke this partner API key? It will immediately block all requests.')) return;
   audio.playClick();
   try {
-    const res = await fetch(`/api/v1/auth/keys/${keyId}`, { method: 'DELETE' });
+    const res = await apiFetch(`/api/v1/auth/keys/${keyId}`, { method: 'DELETE' });
     if (res.ok) {
       loadApiKeys();
     }
@@ -1342,7 +1422,7 @@ export async function testApiEndpoint(path: string, method: string = 'GET', body
     };
     if (body) options.body = JSON.stringify(body);
 
-    const res = await fetch(path, options);
+    const res = await apiFetch(path, options);
     const endTime = performance.now();
     const duration = Math.round(endTime - startTime);
 
@@ -1361,7 +1441,7 @@ export async function testApiEndpoint(path: string, method: string = 'GET', body
 
 export async function loadWebhooksAndAlerts(): Promise<void> {
   try {
-    const hookRes = await fetch('/api/v1/webhooks');
+    const hookRes = await apiFetch('/api/v1/webhooks');
     if (hookRes.ok) {
       const data: { count: number; webhooks: WebhookRecord[] } = await hookRes.json();
       const list = document.getElementById('webhooks-list');
@@ -1384,7 +1464,7 @@ export async function loadWebhooksAndAlerts(): Promise<void> {
       }
     }
 
-    const alertRes = await fetch('/api/v1/alerts/history');
+    const alertRes = await apiFetch('/api/v1/alerts/history');
     if (alertRes.ok) {
       const data: { count: number; alerts: DispatchAlertRecord[] } = await alertRes.json();
       const histList = document.getElementById('dispatch-history-list');
@@ -1427,7 +1507,7 @@ export async function registerWebhook(): Promise<void> {
   }
   audio.playClick();
   try {
-    const res = await fetch('/api/v1/webhooks', {
+    const res = await apiFetch('/api/v1/webhooks', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url })
@@ -1444,7 +1524,7 @@ export async function registerWebhook(): Promise<void> {
 export async function deleteWebhook(id: number): Promise<void> {
   audio.playClick();
   try {
-    await fetch(`/api/v1/webhooks/${id}`, { method: 'DELETE' });
+    await apiFetch(`/api/v1/webhooks/${id}`, { method: 'DELETE' });
     loadWebhooksAndAlerts();
   } catch (e) {
     // ignore
@@ -1454,7 +1534,7 @@ export async function deleteWebhook(id: number): Promise<void> {
 export async function triggerManualTestDispatch(): Promise<void> {
   audio.playDirectiveChime();
   try {
-    const res = await fetch('/api/v1/alerts/test-dispatch', {
+    const res = await apiFetch('/api/v1/alerts/test-dispatch', {
       method: 'POST',
       headers: { 'x-api-key': activeApiKey }
     });
@@ -1470,7 +1550,7 @@ export async function triggerManualTestDispatch(): Promise<void> {
 
 export async function refreshAuditLogs(): Promise<void> {
   try {
-    const res = await fetch('/api/v1/audit/logs?limit=30');
+    const res = await apiFetch('/api/v1/audit/logs?limit=30');
     if (res.ok) {
       const data: { count: number; logs: ComplianceAuditRecord[] } = await res.json();
       const tbody = document.getElementById('audit-logs-table-body');
@@ -1495,7 +1575,7 @@ export async function refreshAuditLogs(): Promise<void> {
 
 export async function loadSystemConfig(): Promise<void> {
   try {
-    const res = await fetch('/api/v1/system/status');
+    const res = await apiFetch('/api/v1/system/status');
     if (res.ok) {
       const data: SystemStatusResponse = await res.json();
       const db = data.database;
@@ -1534,7 +1614,7 @@ export async function saveIngestionApiKeys(): Promise<void> {
   const wxKey = (wxInput?.value ?? '').trim();
 
   try {
-    const res = await fetch('/api/v1/system/api-keys', {
+    const res = await apiFetch('/api/v1/system/api-keys', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1566,7 +1646,7 @@ export async function saveDatabaseConfig(): Promise<void> {
   if (statusMsg) statusMsg.textContent = 'Connecting and verifying schema migrations...';
 
   try {
-    const res = await fetch('/api/v1/system/db-config', {
+    const res = await apiFetch('/api/v1/system/db-config', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ database_url: dbUrl })
@@ -1655,10 +1735,49 @@ window.selectPaymentRail = selectPaymentRail;
 window.initiateEnterpriseCheckout = initiateEnterpriseCheckout;
 window.completeEnterpriseOrder = completeEnterpriseOrder;
 window.downloadCurrentInvoice = downloadCurrentInvoice;
+window.navigateTo = navigateTo;
+window.submitPartnershipEnquiry = submitPartnershipEnquiry;
 
 // Boot up sequence
 window.addEventListener('DOMContentLoaded', () => {
-  initMapLibreRadar();
+  // Initialize SPA Route based on current browser URL
+  const initialPath = window.location.pathname;
+  if (initialPath === '/dashboard' || initialPath.startsWith('/dashboard')) {
+    navigateTo('/dashboard', false);
+    initMapLibreRadar();
+  } else {
+    navigateTo('/', false);
+  }
+
+  // Handle browser back/forward buttons
+  window.addEventListener('popstate', () => {
+    navigateTo(window.location.pathname, false);
+  });
+
+  // Subscribe to central API client connection and cold-start events
+  apiClient.subscribe((state) => {
+    const coldStartBanner = document.getElementById('render-cold-start-banner');
+    if (coldStartBanner) {
+      if (state.isColdStarting) {
+        coldStartBanner.classList.remove('hidden');
+      } else {
+        coldStartBanner.classList.add('hidden');
+      }
+    }
+
+    const dbText = document.getElementById('db-status-text');
+    const dbDot = document.getElementById('db-status-dot');
+    if (dbText && dbDot) {
+      if (state.isConnected) {
+        dbText.textContent = state.isPostgres ? 'POSTGRES VAULT' : 'SQLITE WAL VAULT';
+        dbDot.className = 'w-2 h-2 rounded-full bg-emerald-400';
+      } else if (state.isColdStarting) {
+        dbText.textContent = 'RENDER WAKING';
+        dbDot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-ping';
+      }
+    }
+  });
+
   renderFlightFeed();
   setInterval(updateClocks, 1000);
   updateClocks();
@@ -1671,4 +1790,5 @@ window.addEventListener('DOMContentLoaded', () => {
     fetchLiveBackendTelemetry();
   }, 3000);
 });
+
 

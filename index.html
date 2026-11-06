@@ -333,8 +333,814 @@
   <div class="fixed top-0 left-1/4 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none"></div>
   <div class="fixed bottom-0 right-1/4 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none"></div>
 
-  <!-- MAIN WRAPPER -->
-  <div class="relative z-10 flex flex-col min-h-screen">
+  <!-- ==================== VIEW 1: PUBLIC ENTERPRISE LANDING PAGE (ROUTE: /) ==================== -->
+  <div id="landing-page-view" class="relative z-10 flex flex-col min-h-screen">
+    
+    <!-- Top Announcement Bar -->
+    <div class="border-b border-cyan-500/20 bg-[#02050b]/95 backdrop-blur-md px-4 py-1.5 text-center text-[11px] font-mono select-none">
+      <div class="flex items-center justify-center space-x-3 text-slate-300">
+        <span class="flex items-center gap-1.5 text-emerald-400 font-bold">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+          DEFCON 4 NOMINAL
+        </span>
+        <span class="text-slate-600">|</span>
+        <span class="text-slate-300">
+          SKYGRID INTELLIGENCE v4.9 • OPERATIONAL EVALUATION PROTOTYPE
+        </span>
+        <span class="text-slate-600">|</span>
+        <a href="#landing-disclosure" class="text-cyan-400 hover:text-white underline font-semibold transition-colors">
+          ICAO Annex 19 Regulatory Disclosure
+        </a>
+      </div>
+    </div>
+
+    <!-- Landing Navigation Header -->
+    <header class="border-b border-cyan-500/20 bg-obsidian-900/90 backdrop-blur-md sticky top-0 z-50 px-4 lg:px-8 py-3">
+      <div class="max-w-7xl mx-auto flex items-center justify-between gap-4">
+        
+        <!-- Brand & Division -->
+        <a href="/" onclick="event.preventDefault(); window.navigateTo('/');" class="flex items-center space-x-3.5 group">
+          <div class="relative flex items-center justify-center w-10 h-10 rounded bg-obsidian-800 border border-cyan-400/40 shadow-glow-cyan transition-transform group-hover:scale-105">
+            <svg class="w-5 h-5 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="m4.93 4.93 4.24 4.24"/>
+              <path d="m14.83 9.17 4.24-4.24"/>
+              <path d="m14.83 14.83 4.24 4.24"/>
+              <path d="m9.17 14.83-4.24 4.24"/>
+              <circle cx="12" cy="12" r="4"/>
+            </svg>
+            <span class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-400 rounded-full animate-ping"></span>
+            <span class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-400 rounded-full"></span>
+          </div>
+          <div>
+            <div class="flex items-center space-x-2">
+              <span class="font-extrabold tracking-wider text-base lg:text-lg text-white font-sans">
+                SKYGRID <span class="text-cyan-400 font-mono">INTELLIGENCE</span>
+              </span>
+              <span class="px-1.5 py-0.5 text-[9px] font-mono tracking-widest uppercase bg-cyan-950/80 border border-cyan-500/40 text-cyan-300 rounded font-semibold">
+                ENTERPRISE B2B
+              </span>
+            </div>
+            <div class="text-[10px] text-slate-400 font-mono tracking-wide">
+              AKANNO TECH LABS LIMITED • SOVEREIGN AVIATION RISK DIVISION
+            </div>
+          </div>
+        </a>
+
+        <!-- Desktop Navigation Links -->
+        <nav class="hidden md:flex items-center space-x-6 text-xs font-mono text-slate-300">
+          <a href="#landing-overview" class="hover:text-cyan-300 transition-colors">Overview</a>
+          <a href="#landing-capabilities" class="hover:text-cyan-300 transition-colors">Capabilities</a>
+          <a href="#landing-architecture" class="hover:text-cyan-300 transition-colors">Architecture</a>
+          <a href="#landing-disclosure" class="text-amber-300 hover:text-amber-200 transition-colors flex items-center gap-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+            Disclosure
+          </a>
+          <a href="#landing-licensing" class="hover:text-cyan-300 transition-colors">Licensing & API</a>
+          <a href="#landing-about" class="hover:text-cyan-300 transition-colors">About Us</a>
+          <a href="#landing-contact" class="hover:text-cyan-300 transition-colors">Enquiry</a>
+        </nav>
+
+        <!-- Header CTA Buttons -->
+        <div class="flex items-center space-x-3">
+          <button onclick="window.navigateTo('/dashboard')" class="px-4 py-2 rounded bg-gradient-to-r from-cyan-500 to-cyan-400 hover:from-cyan-400 hover:to-cyan-300 text-obsidian-950 font-mono text-xs font-extrabold shadow-glow-cyan transition-all flex items-center gap-2 group">
+            <span>ENTER COMMAND DASHBOARD</span>
+            <span class="group-hover:translate-x-0.5 transition-transform">➔</span>
+          </button>
+        </div>
+
+      </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section id="landing-overview" class="relative py-16 lg:py-24 px-4 lg:px-8 border-b border-cyan-500/15 overflow-hidden">
+      <!-- Glow Gradients -->
+      <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[350px] bg-cyan-500/10 rounded-full blur-[120px] pointer-events-none"></div>
+
+      <div class="max-w-6xl mx-auto text-center relative z-10 space-y-6">
+        
+        <!-- Tactical Badge -->
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-950/80 border border-cyan-500/50 text-cyan-300 text-xs font-mono shadow-glow-cyan">
+          <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+          <span>SOVEREIGN AIRSPACE RISK & AUTONOMOUS DECONFLICTION ENGINE</span>
+        </div>
+
+        <!-- Headline -->
+        <h1 class="text-3xl sm:text-5xl lg:text-6xl font-extrabold text-white tracking-tight font-sans leading-tight max-w-4xl mx-auto">
+          Next-Generation Aviation Risk Intelligence for <span class="bg-gradient-to-r from-cyan-400 via-cyan-300 to-emerald-400 bg-clip-text text-transparent">High-Density Air Corridors</span>
+        </h1>
+
+        <!-- Subtitle -->
+        <p class="text-base sm:text-lg text-slate-300 max-w-3xl mx-auto font-sans leading-relaxed">
+          Engineered by <strong class="text-white">Akanno Tech Labs Limited</strong>. SkyGrid Intelligence dynamically correlates multi-source ADS-B transponder telemetry, terminal windshear vectors, and wake turbulence fields to deliver real-time deconfliction directives and laminar separation across congested international flight paths.
+        </p>
+
+        <!-- Action CTAs -->
+        <div class="pt-4 flex flex-wrap items-center justify-center gap-4 font-mono">
+          <button onclick="window.navigateTo('/dashboard')" class="px-6 py-3.5 rounded bg-cyan-500 hover:bg-cyan-400 text-obsidian-950 font-bold text-sm shadow-glow-cyan transition-all flex items-center gap-2 group">
+            <svg class="w-4 h-4 text-obsidian-950" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <polygon points="5 3 19 12 5 21 5 3"/>
+            </svg>
+            <span>LAUNCH LIVE COMMAND CENTER (/dashboard)</span>
+            <span class="group-hover:translate-x-1 transition-transform">➔</span>
+          </button>
+          
+          <a href="#landing-architecture" class="px-5 py-3.5 rounded bg-obsidian-850 hover:bg-obsidian-800 border border-slate-700 hover:border-cyan-400 text-slate-200 text-sm font-semibold transition-all">
+            Technical Architecture
+          </a>
+
+          <a href="#landing-disclosure" class="px-5 py-3.5 rounded bg-obsidian-850 hover:bg-obsidian-800 border border-amber-600/60 hover:border-amber-500 text-amber-300 text-sm font-semibold transition-all">
+            Regulatory Disclosure
+          </a>
+        </div>
+
+        <!-- Live KPI Strip -->
+        <div class="pt-8 max-w-4xl mx-auto grid grid-cols-2 sm:grid-cols-4 gap-3 font-mono text-left">
+          <div class="p-3 rounded-lg bg-obsidian-850/80 border border-slate-800">
+            <span class="text-[10px] text-slate-500 uppercase block">CORRIDORS MONITORED</span>
+            <span class="text-xl font-bold text-white font-telemetry">5 Strategic Hubs</span>
+            <span class="text-[10px] text-emerald-400 block mt-0.5">DXB, DOH, SIN, LHR, DWC</span>
+          </div>
+          <div class="p-3 rounded-lg bg-obsidian-850/80 border border-slate-800">
+            <span class="text-[10px] text-slate-500 uppercase block">DECONFLICTION LATENCY</span>
+            <span class="text-xl font-bold text-cyan-300 font-telemetry">&lt; 42 ms</span>
+            <span class="text-[10px] text-slate-400 block mt-0.5">Neural Resolution Engine</span>
+          </div>
+          <div class="p-3 rounded-lg bg-obsidian-850/80 border border-slate-800">
+            <span class="text-[10px] text-slate-500 uppercase block">LAMINAR ENVELOPE</span>
+            <span class="text-xl font-bold text-emerald-400 font-telemetry">6.0 NM</span>
+            <span class="text-[10px] text-slate-400 block mt-0.5">Wake Separation Enforced</span>
+          </div>
+          <div class="p-3 rounded-lg bg-obsidian-850/80 border border-slate-800">
+            <span class="text-[10px] text-slate-500 uppercase block">CRYPTOGRAPHIC AUDIT</span>
+            <span class="text-xl font-bold text-white font-telemetry">SHA-256</span>
+            <span class="text-[10px] text-cyan-300 block mt-0.5">ICAO Annex 19 SMS Chain</span>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Interactive Dashboard Preview Showcase Section -->
+    <section class="py-14 px-4 lg:px-8 border-b border-cyan-500/15 bg-obsidian-950/60">
+      <div class="max-w-6xl mx-auto space-y-6">
+        
+        <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div>
+            <div class="flex items-center space-x-2 text-xs font-mono text-cyan-400 uppercase tracking-wider">
+              <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+              <span>LIVE INTERFACE PREVIEW</span>
+            </div>
+            <h2 class="text-2xl sm:text-3xl font-bold text-white mt-1">
+              Operational Command Terminal Architecture
+            </h2>
+            <p class="text-xs sm:text-sm text-slate-400 mt-1 max-w-2xl font-sans">
+              High-frequency tactical radar visualization, real-time vector conflict analysis, and automated airline dispatch dispatches built for operations control centers.
+            </p>
+          </div>
+          <button onclick="window.navigateTo('/dashboard')" class="px-4 py-2 rounded bg-obsidian-850 hover:bg-cyan-950 border border-cyan-500/40 text-cyan-300 hover:text-white font-mono text-xs font-bold transition-all shrink-0">
+            Open Full Tactical Terminal ➔
+          </button>
+        </div>
+
+        <!-- Terminal Preview Frame -->
+        <div onclick="window.navigateTo('/dashboard')" class="cursor-pointer group obsidian-card rounded-xl border border-cyan-500/30 overflow-hidden shadow-2xl relative hover:border-cyan-400 transition-all">
+          
+          <!-- Mock Terminal Bar -->
+          <div class="px-4 py-2 bg-obsidian-900 border-b border-slate-800 flex items-center justify-between text-xs font-mono text-slate-400">
+            <div class="flex items-center space-x-2">
+              <div class="flex space-x-1.5">
+                <span class="w-3 h-3 rounded-full bg-red-500/80"></span>
+                <span class="w-3 h-3 rounded-full bg-amber-500/80"></span>
+                <span class="w-3 h-3 rounded-full bg-emerald-500/80"></span>
+              </div>
+              <span class="ml-2 text-white font-bold">SKYGRID PRIMARY TACTICAL RADAR HUD</span>
+              <span class="text-slate-600">|</span>
+              <span class="text-cyan-300">OMDB / DXB TACTICAL SECTOR</span>
+            </div>
+            <div class="flex items-center space-x-3 text-[11px]">
+              <span class="text-emerald-400 font-bold">● LIVE DEMO STREAM</span>
+              <span class="px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-700 font-bold group-hover:bg-cyan-500 group-hover:text-obsidian-950 transition-colors">
+                CLICK TO LAUNCH INTERACTIVE HUD
+              </span>
+            </div>
+          </div>
+
+          <!-- Preview Content (Grid Representation of the Real Dashboard) -->
+          <div class="p-4 sm:p-6 bg-[#02050b] grid grid-cols-1 lg:grid-cols-12 gap-4 select-none">
+            
+            <!-- Left Mock Radar Scope (8 cols) -->
+            <div class="lg:col-span-8 h-72 sm:h-96 rounded-lg bg-obsidian-900/90 border border-cyan-500/20 relative overflow-hidden flex flex-col justify-between p-4">
+              <!-- Radar Target Marker -->
+              <div class="flex items-center justify-between font-mono text-[11px] text-slate-400 z-10">
+                <div class="flex items-center space-x-2">
+                  <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping"></span>
+                  <span class="text-white font-bold uppercase">TARGET: 25.2532° N, 55.3657° E</span>
+                  <span class="text-cyan-400">(DXB OMDB PRIMARY HUB)</span>
+                </div>
+                <div class="text-emerald-400 font-bold">RANGE: 250 NM | FL450</div>
+              </div>
+
+              <!-- Animated Sweep Line & Rings Simulation -->
+              <div class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-40">
+                <div class="w-72 h-72 rounded-full border border-cyan-500/30 flex items-center justify-center">
+                  <div class="w-48 h-48 rounded-full border border-cyan-500/40 flex items-center justify-center">
+                    <div class="w-24 h-24 rounded-full border border-cyan-500/50"></div>
+                  </div>
+                </div>
+                <div class="absolute w-72 h-72 rounded-full border-t border-cyan-400/80 animate-radar-scan"></div>
+              </div>
+
+              <!-- Mock Aircraft Markers on Scope -->
+              <div class="relative z-10 flex flex-col justify-between h-full py-8">
+                <div class="flex items-center space-x-2 text-cyan-300 font-mono text-xs pl-12">
+                  <span class="text-white font-bold">✈ FDX-4412</span>
+                  <span class="text-[10px] text-slate-400">FL340 • 488 kts</span>
+                  <span class="px-1.5 py-0.2 rounded bg-emerald-950 text-emerald-400 text-[9px] border border-emerald-600 font-bold">CRI 8.4%</span>
+                </div>
+                <div class="flex items-center space-x-2 text-amber-300 font-mono text-xs self-center">
+                  <span class="text-white font-bold">✈ SQ-CARGO 77</span>
+                  <span class="text-[10px] text-slate-400">FL310 • 492 kts</span>
+                  <span class="px-1.5 py-0.2 rounded bg-amber-950 text-amber-400 text-[9px] border border-amber-600 font-bold">CRI 18.2%</span>
+                </div>
+                <div class="flex items-center space-x-2 text-cyan-300 font-mono text-xs pl-32">
+                  <span class="text-white font-bold">✈ EK-CARGO 902</span>
+                  <span class="text-[10px] text-slate-400">FL280 • 445 kts</span>
+                  <span class="px-1.5 py-0.2 rounded bg-emerald-950 text-emerald-400 text-[9px] border border-emerald-600 font-bold">CRI 11.0%</span>
+                </div>
+              </div>
+
+              <!-- Bottom Scope Info -->
+              <div class="flex items-center justify-between font-mono text-[10px] text-slate-500 z-10">
+                <span>VECTOR LAYER: ACTIVE (3D PITCH 45°)</span>
+                <span class="text-cyan-400 font-bold">MAPLIBRE GL VECTOR ENGINE</span>
+              </div>
+            </div>
+
+            <!-- Right Mock Telemetry & Hazard Sidebar (4 cols) -->
+            <div class="lg:col-span-4 flex flex-col gap-3">
+              <!-- CRI Gauge Card -->
+              <div class="p-3.5 rounded-lg bg-obsidian-900 border border-slate-800">
+                <div class="flex items-center justify-between text-xs font-mono text-slate-400 mb-2">
+                  <span class="uppercase font-semibold">CORRIDOR RISK INDEX</span>
+                  <span class="text-emerald-400 font-bold">14.2% NOMINAL</span>
+                </div>
+                <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                  <div class="bg-gradient-to-r from-emerald-400 to-cyan-400 h-full w-[14.2%]"></div>
+                </div>
+                <div class="mt-2 text-[10px] text-slate-500 font-mono flex justify-between">
+                  <span>SAFETY ENVELOPE: 25.0%</span>
+                  <span class="text-emerald-400">CLEAR</span>
+                </div>
+              </div>
+
+              <!-- Terminal Weather Anomaly -->
+              <div class="p-3.5 rounded-lg bg-obsidian-900 border border-slate-800 font-mono text-xs">
+                <div class="text-slate-400 uppercase text-[10px] font-semibold mb-1">TERMINAL METEOROLOGY (DXB)</div>
+                <div class="text-white font-bold text-sm">WINDS 320° @ 14 G 22 KTS</div>
+                <div class="text-[11px] text-slate-400 mt-1">Windshear Delta: <span class="text-emerald-400 font-bold">8.2 kts</span> (Below 15 kts threshold)</div>
+              </div>
+
+              <!-- Automated Directives -->
+              <div class="p-3.5 rounded-lg bg-obsidian-900 border border-slate-800 font-mono text-xs flex-1 flex flex-col justify-between">
+                <div>
+                  <div class="text-slate-400 uppercase text-[10px] font-semibold mb-1">AI DIRECTIVES ENGINE</div>
+                  <div class="text-emerald-400 font-bold text-xs flex items-center gap-1.5">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span>RESOLUTION ACTIVE: STEP-CLIMB FL340</span>
+                  </div>
+                  <div class="text-[11px] text-slate-400 mt-1 leading-tight">
+                    SQ-CARGO 77 stepped to maintain 6.0 NM wake spacing behind FDX-4412.
+                  </div>
+                </div>
+                <div class="pt-2 border-t border-slate-800/80 text-[10px] text-cyan-400 font-bold text-right">
+                  0 CONFLICT OVERRIDES
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+
+          <!-- Bottom Prompt Overlay -->
+          <div class="p-3 bg-cyan-950/70 border-t border-cyan-500/30 flex items-center justify-between text-xs font-mono text-cyan-300">
+            <span class="flex items-center gap-2">
+              <svg class="w-4 h-4 text-cyan-400 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"/>
+              </svg>
+              Click anywhere on this preview to open the live interactive command center.
+            </span>
+            <span class="font-extrabold text-white group-hover:underline">LAUNCH DASHBOARD ➔</span>
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Product Capabilities Section ("Six Operational Intelligence Pillars") -->
+    <section id="landing-capabilities" class="py-16 lg:py-20 px-4 lg:px-8 border-b border-cyan-500/15">
+      <div class="max-w-6xl mx-auto space-y-10">
+        
+        <div class="text-center max-w-3xl mx-auto space-y-2">
+          <div class="text-xs font-mono text-cyan-400 uppercase tracking-widest font-bold">
+            MISSION-CRITICAL CAPABILITIES
+          </div>
+          <h2 class="text-2xl sm:text-4xl font-extrabold text-white">
+            Six Pillars of Sovereign Aviation Risk Intelligence
+          </h2>
+          <p class="text-sm text-slate-400 font-sans">
+            Architected for civil aviation directorates, sovereign airspace authorities, and international cargo airlines operating in congested transition airspace.
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          
+          <!-- Pillar 1: Dynamic CRI -->
+          <div class="obsidian-card tactical-brackets rounded-lg p-5 flex flex-col justify-between">
+            <div>
+              <div class="w-9 h-9 rounded bg-cyan-950 border border-cyan-600 flex items-center justify-center text-cyan-400 mb-3 shadow-glow-cyan">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                </svg>
+              </div>
+              <h3 class="text-base font-bold text-white mb-1.5 font-sans">Dynamic Corridor Risk Index (CRI)</h3>
+              <p class="text-xs text-slate-400 font-sans leading-relaxed">
+                Synthesizes mathematical collision risk, convective turbulence, convergence geometry, and airspace density into a normalized 0–100% hazard metric updated continuously.
+              </p>
+            </div>
+            <div class="mt-4 pt-3 border-t border-slate-800 text-[11px] font-mono text-cyan-400 font-semibold">
+              CRITICAL THRESHOLD: &gt; 25.0%
+            </div>
+          </div>
+
+          <!-- Pillar 2: Terminal Meteorology & Windshear -->
+          <div class="obsidian-card tactical-brackets rounded-lg p-5 flex flex-col justify-between">
+            <div>
+              <div class="w-9 h-9 rounded bg-cyan-950 border border-cyan-600 flex items-center justify-center text-cyan-400 mb-3 shadow-glow-cyan">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 00-9.78 2.096A4.001 4.001 0 003 15z"/>
+                </svg>
+              </div>
+              <h3 class="text-base font-bold text-white mb-1.5 font-sans">Terminal Meteorology & Windshear</h3>
+              <p class="text-xs text-slate-400 font-sans leading-relaxed">
+                Ingests live METAR/Doppler gust metrics, calculating terminal windshear deltas and microburst threat vectors to ensure runway threshold approach safety.
+              </p>
+            </div>
+            <div class="mt-4 pt-3 border-t border-slate-800 text-[11px] font-mono text-cyan-400 font-semibold">
+              SEPARATION ALERT: &gt; 15.0 KTS
+            </div>
+          </div>
+
+          <!-- Pillar 3: Laminar Flow & Wake Vortex Separation -->
+          <div class="obsidian-card tactical-brackets rounded-lg p-5 flex flex-col justify-between">
+            <div>
+              <div class="w-9 h-9 rounded bg-cyan-950 border border-cyan-600 flex items-center justify-center text-cyan-400 mb-3 shadow-glow-cyan">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                </svg>
+              </div>
+              <h3 class="text-base font-bold text-white mb-1.5 font-sans">Laminar Separation & Wake Spacing</h3>
+              <p class="text-xs text-slate-400 font-sans leading-relaxed">
+                Enforces strict 6.0 NM wake separation envelopes for heavy freighters (B777F, A330-200F, B747-8F) operating in parallel runway arrival corridors.
+              </p>
+            </div>
+            <div class="mt-4 pt-3 border-t border-slate-800 text-[11px] font-mono text-cyan-400 font-semibold">
+              SEPARATION TOLERANCE: ± 0.003 NM
+            </div>
+          </div>
+
+          <!-- Pillar 4: Autonomous Trajectory Resequencing -->
+          <div class="obsidian-card tactical-brackets rounded-lg p-5 flex flex-col justify-between">
+            <div>
+              <div class="w-9 h-9 rounded bg-cyan-950 border border-cyan-600 flex items-center justify-center text-cyan-400 mb-3 shadow-glow-cyan">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                </svg>
+              </div>
+              <h3 class="text-base font-bold text-white mb-1.5 font-sans">Autonomous Deconfliction Directives</h3>
+              <p class="text-xs text-slate-400 font-sans leading-relaxed">
+                Sub-second neural deconfliction engine computing optimal step-climbs, 15-knot speed dampening, and holding-pattern insertions before vector conflicts occur.
+              </p>
+            </div>
+            <div class="mt-4 pt-3 border-t border-slate-800 text-[11px] font-mono text-cyan-400 font-semibold">
+              AUDITED RESOLUTIONS: 42 ACTIONS
+            </div>
+          </div>
+
+          <!-- Pillar 5: Outbound Dispatch Webhooks -->
+          <div class="obsidian-card tactical-brackets rounded-lg p-5 flex flex-col justify-between">
+            <div>
+              <div class="w-9 h-9 rounded bg-cyan-950 border border-cyan-600 flex items-center justify-center text-cyan-400 mb-3 shadow-glow-cyan">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                </svg>
+              </div>
+              <h3 class="text-base font-bold text-white mb-1.5 font-sans">Outbound Webhooks & Ops Alerts</h3>
+              <p class="text-xs text-slate-400 font-sans leading-relaxed">
+                Broadcasts cryptographic HMAC-SHA256 authenticated webhook payloads to Slack, Microsoft Teams, and internal airline operations centers the instant an anomaly triggers.
+              </p>
+            </div>
+            <div class="mt-4 pt-3 border-t border-slate-800 text-[11px] font-mono text-cyan-400 font-semibold">
+              HMAC SIGNATURE: SHA-256 HEADER
+            </div>
+          </div>
+
+          <!-- Pillar 6: Compliance & B2B Dual-Rail Billing -->
+          <div class="obsidian-card tactical-brackets rounded-lg p-5 flex flex-col justify-between">
+            <div>
+              <div class="w-9 h-9 rounded bg-cyan-950 border border-cyan-600 flex items-center justify-center text-cyan-400 mb-3 shadow-glow-cyan">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+              </div>
+              <h3 class="text-base font-bold text-white mb-1.5 font-sans">ICAO Annex 19 Compliance & Invoicing</h3>
+              <p class="text-xs text-slate-400 font-sans leading-relaxed">
+                Download official Safety Management System (SMS) PDF compliance reports and CSV logs. Commercial enterprise licenses are billed via Flutterwave or Raenest USD wire invoices.
+              </p>
+            </div>
+            <div class="mt-4 pt-3 border-t border-slate-800 text-[11px] font-mono text-cyan-400 font-semibold">
+              STANDARDS: ICAO ANNEX 19 SMS
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Architecture & Technology Overview Section -->
+    <section id="landing-architecture" class="py-16 lg:py-20 px-4 lg:px-8 border-b border-cyan-500/15 bg-obsidian-950/40">
+      <div class="max-w-6xl mx-auto space-y-10">
+        
+        <div class="text-center max-w-3xl mx-auto space-y-2">
+          <div class="text-xs font-mono text-cyan-400 uppercase tracking-widest font-bold">
+            DISTRIBUTED CLOUD ARCHITECTURE
+          </div>
+          <h2 class="text-2xl sm:text-4xl font-extrabold text-white">
+            Engineered for Low Latency and Zero Data Loss
+          </h2>
+          <p class="text-sm text-slate-400 font-sans">
+            Independent separation of high-frequency frontend rendering on Vercel Edge and persistent Python analytics on Render Cloud.
+          </p>
+        </div>
+
+        <!-- Architecture Diagram Box -->
+        <div class="obsidian-card rounded-xl p-6 sm:p-8 border border-cyan-500/30 font-mono text-xs text-slate-300 space-y-6">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            
+            <!-- Layer 1 -->
+            <div class="p-4 rounded-lg bg-obsidian-900 border border-slate-800 space-y-2">
+              <div class="flex items-center justify-between text-cyan-300 font-bold border-b border-slate-800 pb-2">
+                <span>01. FRONTEND EDGE</span>
+                <span class="text-[10px] text-slate-500">VERCEL GLOBAL CDN</span>
+              </div>
+              <ul class="space-y-1.5 text-[11px] text-slate-400">
+                <li>• Vite 8.3 & React 18</li>
+                <li>• MapLibre GL 6.16 WebGL Radar</li>
+                <li>• Web Audio Tactical Synthesizer</li>
+                <li>• Strict TypeScript (Zero `any`)</li>
+                <li>• Centralized API Client (`apiClient`)</li>
+              </ul>
+            </div>
+
+            <!-- Layer 2 -->
+            <div class="p-4 rounded-lg bg-obsidian-900 border border-slate-800 space-y-2">
+              <div class="flex items-center justify-between text-cyan-300 font-bold border-b border-slate-800 pb-2">
+                <span>02. FASTAPI GATEWAY</span>
+                <span class="text-[10px] text-slate-500">RENDER CLOUD RUNTIME</span>
+              </div>
+              <ul class="space-y-1.5 text-[11px] text-slate-400">
+                <li>• Asynchronous FastAPI 4.9.0</li>
+                <li>• 60s Background Polling Daemon</li>
+                <li>• In-Memory TTL Cache Shield</li>
+                <li>• Token-Bucket API Rate Limiter</li>
+                <li>• HMAC-SHA256 Webhook Dispatch</li>
+              </ul>
+            </div>
+
+            <!-- Layer 3 -->
+            <div class="p-4 rounded-lg bg-obsidian-900 border border-slate-800 space-y-2">
+              <div class="flex items-center justify-between text-cyan-300 font-bold border-b border-slate-800 pb-2">
+                <span>03. STORAGE & VAULT</span>
+                <span class="text-[10px] text-slate-500">POSTGRESQL & WAL SQLITE</span>
+              </div>
+              <ul class="space-y-1.5 text-[11px] text-slate-400">
+                <li>• PostgreSQL Native via `psycopg` v3</li>
+                <li>• Embedded SQLite WAL Auto-Fallback</li>
+                <li>• ReportLab ICAO PDF Compilation</li>
+                <li>• SHA-256 Key & Order Vault</li>
+                <li>• Dual-Rail Invoicing Ledger</li>
+              </ul>
+            </div>
+
+          </div>
+
+          <div class="p-3 bg-obsidian-950 rounded border border-slate-800 text-[11px] text-slate-400 flex flex-col sm:flex-row items-center justify-between gap-2">
+            <span>Security Model: No secrets or private gateway tokens are packaged into the frontend client bundle.</span>
+            <span class="text-emerald-400 font-bold">SHA-256 AIRSPACE AUDIT VERIFIED</span>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Development-Stage & Regulatory Disclosure Section (Crucial Requirement) -->
+    <section id="landing-disclosure" class="py-14 px-4 lg:px-8 border-b border-amber-500/30 bg-amber-950/20">
+      <div class="max-w-5xl mx-auto space-y-4">
+        
+        <div class="p-6 rounded-xl bg-obsidian-900/90 border-2 border-amber-500/50 shadow-2xl relative overflow-hidden">
+          <div class="flex items-start space-x-4">
+            <div class="p-3 rounded-lg bg-amber-950/80 border border-amber-600 text-amber-400 shrink-0">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+              </svg>
+            </div>
+            <div class="space-y-2">
+              <div class="flex items-center space-x-2">
+                <h3 class="text-base sm:text-lg font-bold text-white font-mono uppercase tracking-wide">
+                  REGULATORY DISCLOSURE & PROTOTYPE EVALUATION NOTICE
+                </h3>
+                <span class="px-2 py-0.5 rounded text-[10px] bg-amber-950 text-amber-300 border border-amber-600 font-mono font-bold">
+                  ICAO ANNEX 19 COMPLIANCE ADVISORY
+                </span>
+              </div>
+              <p class="text-xs sm:text-sm text-slate-300 font-sans leading-relaxed">
+                SkyGrid Intelligence is an advanced technology demonstration and evaluation platform engineered by <strong class="text-white">Akanno Tech Labs Limited</strong>. All flight vectors, aircraft coordinates, transponder values, and hazard ratings displayed in this evaluation environment operate in a <strong class="text-amber-300 font-semibold">high-fidelity synthetic/simulated ADS-B mode</strong> mapped onto real-world geographic air corridors (including Dubai OMDB, Doha OTHH, Singapore WSSS, and London Heathrow EGLL).
+              </p>
+              <p class="text-xs sm:text-sm text-slate-400 font-sans leading-relaxed">
+                While the software architecture adheres to <strong class="text-white">ICAO Annex 19 Safety Management Systems (SMS)</strong> structural standards, active commercial deployment in sovereign controlled civil airspace requires formal certification by national civil aviation authorities (such as the UAE GCAA, US FAA, or EASA) and certified integration with primary/secondary surveillance radar (PSR/SSR) ground stations. This system is presented for technical review, investor evaluation, and demonstration purposes.
+              </p>
+              <div class="pt-2 flex items-center space-x-4 font-mono text-[11px] text-amber-400/90">
+                <span>• CERTIFICATION STATUS: EVALUATION PROTOTYPE</span>
+                <span>• TELEMETRY FIDELITY: SYNTHETIC REAL-WORLD CORRIDOR</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Commercial B2B Licensing & Pricing Section -->
+    <section id="landing-licensing" class="py-16 lg:py-20 px-4 lg:px-8 border-b border-cyan-500/15 bg-obsidian-950/60">
+      <div class="max-w-6xl mx-auto space-y-10">
+        
+        <div class="text-center max-w-3xl mx-auto space-y-2">
+          <div class="text-xs font-mono text-cyan-400 uppercase tracking-widest font-bold">
+            COMMERCIAL ENTERPRISE LICENSING
+          </div>
+          <h2 class="text-2xl sm:text-4xl font-extrabold text-white">
+            Transparent Commercial Access for Air Logistics
+          </h2>
+          <p class="text-sm text-slate-400 font-sans">
+            Strict paid-only commercial licensing with zero free tiers. Multi-currency card checkout via Flutterwave or corporate SWIFT wire invoicing to our US treasury account.
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+          
+          <!-- Tier 1 -->
+          <div class="obsidian-card rounded-lg p-5 border border-slate-800 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between mb-2 font-mono text-xs">
+                <span class="text-slate-400 uppercase">Regional Hub</span>
+                <span class="text-emerald-400 font-bold">99.9% SLA</span>
+              </div>
+              <h3 class="text-lg font-bold text-white mb-2">Regional Hub License</h3>
+              <div class="flex items-baseline mb-4">
+                <span class="text-3xl font-extrabold text-cyan-300 font-telemetry">$2,500</span>
+                <span class="text-xs text-slate-400 ml-1.5 font-mono">/ month</span>
+              </div>
+              <ul class="text-xs text-slate-300 space-y-2 font-sans mb-6">
+                <li class="flex items-center gap-2">
+                  <span class="text-cyan-400">✓</span> Single corridor (DXB) telemetry & CRI feed
+                </li>
+                <li class="flex items-center gap-2">
+                  <span class="text-cyan-400">✓</span> 50,000 API calls / day (120 req/min)
+                </li>
+                <li class="flex items-center gap-2">
+                  <span class="text-cyan-400">✓</span> Outbound Webhooks & Email Alerts
+                </li>
+                <li class="flex items-center gap-2">
+                  <span class="text-cyan-400">✓</span> Standard 99.9% uptime SLA guarantee
+                </li>
+              </ul>
+            </div>
+            <button onclick="window.navigateTo('/dashboard'); setTimeout(() => window.openEnterprisePortal('keys'), 300);" class="w-full py-2 rounded bg-obsidian-850 hover:bg-cyan-950 border border-slate-700 hover:border-cyan-400 text-cyan-300 font-mono text-xs font-bold transition-all">
+              SELECT REGIONAL ($2,500/MO)
+            </button>
+          </div>
+
+          <!-- Tier 2 (Featured) -->
+          <div class="obsidian-card rounded-lg p-5 border-2 border-cyan-400/60 shadow-glow-cyan bg-obsidian-850/90 flex flex-col justify-between relative overflow-hidden">
+            <div class="absolute -right-12 top-4 rotate-45 bg-cyan-500 text-obsidian-950 text-[9px] font-mono font-extrabold px-10 py-0.5 shadow">
+              FEATURED
+            </div>
+            <div>
+              <div class="flex items-center justify-between mb-2 font-mono text-xs">
+                <span class="text-cyan-400 font-semibold uppercase">Global Carrier</span>
+                <span class="text-emerald-400 font-bold">99.99% SLA</span>
+              </div>
+              <h3 class="text-lg font-bold text-white mb-2">Global Cargo Carrier</h3>
+              <div class="flex items-baseline mb-4">
+                <span class="text-3xl font-extrabold text-cyan-300 font-telemetry">$7,500</span>
+                <span class="text-xs text-slate-400 ml-1.5 font-mono">/ month</span>
+              </div>
+              <ul class="text-xs text-slate-300 space-y-2 font-sans mb-6">
+                <li class="flex items-center gap-2">
+                  <span class="text-cyan-400">✓</span> Multi-corridor autonomous routing directives
+                </li>
+                <li class="flex items-center gap-2">
+                  <span class="text-cyan-400">✓</span> 500,000 API calls / day (500 req/min)
+                </li>
+                <li class="flex items-center gap-2">
+                  <span class="text-cyan-400">✓</span> Real-time windshear & wake vortex alerts
+                </li>
+                <li class="flex items-center gap-2">
+                  <span class="text-cyan-400">✓</span> Slack/Teams instant webhook & SMS dispatches
+                </li>
+              </ul>
+            </div>
+            <button onclick="window.navigateTo('/dashboard'); setTimeout(() => window.openEnterprisePortal('keys'), 300);" class="w-full py-2 rounded bg-cyan-500 hover:bg-cyan-400 text-obsidian-950 font-mono text-xs font-extrabold shadow-glow-cyan transition-all">
+              SELECT CARRIER ($7,500/MO)
+            </button>
+          </div>
+
+          <!-- Tier 3 -->
+          <div class="obsidian-card rounded-lg p-5 border border-slate-800 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between mb-2 font-mono text-xs">
+                <span class="text-emerald-400 font-semibold uppercase">Defense & Civil</span>
+                <span class="text-emerald-400 font-bold">99.999% SLA</span>
+              </div>
+              <h3 class="text-lg font-bold text-white mb-2">Sovereign Airspace & Defense</h3>
+              <div class="flex items-baseline mb-4">
+                <span class="text-3xl font-extrabold text-emerald-400 font-telemetry">$25,000</span>
+                <span class="text-xs text-slate-400 ml-1.5 font-mono">/ mo (Annual Contract)</span>
+              </div>
+              <ul class="text-xs text-slate-300 space-y-2 font-sans mb-6">
+                <li class="flex items-center gap-2">
+                  <span class="text-emerald-400">✓</span> Unlimited dedicated node throughput (3,000+ rpm)
+                </li>
+                <li class="flex items-center gap-2">
+                  <span class="text-emerald-400">✓</span> On-premise / private cloud vault sync
+                </li>
+                <li class="flex items-center gap-2">
+                  <span class="text-emerald-400">✓</span> SHA-256 compliance auditing & raw ADS-B feed
+                </li>
+                <li class="flex items-center gap-2">
+                  <span class="text-emerald-400">✓</span> 24/7 dedicated tactical defense liaison
+                </li>
+              </ul>
+            </div>
+            <button onclick="window.navigateTo('/dashboard'); setTimeout(() => window.openEnterprisePortal('keys'), 300);" class="w-full py-2 rounded bg-obsidian-850 hover:bg-emerald-950 border border-slate-700 hover:border-emerald-500 text-emerald-400 font-mono text-xs font-bold transition-all">
+              SELECT SOVEREIGN (ANNUAL)
+            </button>
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
+    <!-- About Akanno Tech Labs Limited Section -->
+    <section id="landing-about" class="py-16 lg:py-20 px-4 lg:px-8 border-b border-cyan-500/15">
+      <div class="max-w-4xl mx-auto space-y-6">
+        
+        <div class="text-center space-y-2">
+          <div class="text-xs font-mono text-cyan-400 uppercase tracking-widest font-bold">
+            ABOUT THE DEVELOPER
+          </div>
+          <h2 class="text-2xl sm:text-4xl font-extrabold text-white">
+            Akanno Tech Labs Limited
+          </h2>
+          <p class="text-sm text-slate-400 font-sans">
+            Pioneering autonomous airspace intelligence and sovereign infrastructure platforms for international aerospace logistics.
+          </p>
+        </div>
+
+        <div class="obsidian-card rounded-xl p-6 sm:p-8 border border-slate-800 space-y-4 font-sans text-xs sm:text-sm text-slate-300 leading-relaxed">
+          <p>
+            <strong class="text-white">Akanno Tech Labs Limited</strong> is an aerospace and enterprise systems technology engineering company focused on solving high-density trajectory contention, convective weather collision risks, and automated airline slot optimization.
+          </p>
+          <p>
+            With global air freight volumes expanding dramatically across strategic trans-continental transit gateways (including the Persian Gulf, Southeast Asia, and Western Europe), conventional ground-based manual air traffic sequencing faces severe cognitive and throughput bottlenecks. SkyGrid Intelligence was built to introduce mathematical deconfliction autonomy, certified laminar separation envelopes, and continuous cryptographic safety accountability.
+          </p>
+          <div class="pt-4 border-t border-slate-800 flex flex-wrap items-center justify-between gap-4 font-mono text-xs text-slate-400">
+            <div>
+              <span class="text-slate-500 block">CORPORATE HEADQUARTERS</span>
+              <span class="text-white font-bold">Akanno Tech Labs Limited</span>
+            </div>
+            <div>
+              <span class="text-slate-500 block">CORE DOMAIN</span>
+              <span class="text-cyan-300 font-bold">Aviation Risk Intelligence & Autonomous Systems</span>
+            </div>
+            <div>
+              <span class="text-slate-500 block">ENQUIRIES</span>
+              <span class="text-emerald-400 font-bold">partnerships@akannotechlabs.internal</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Partnership & Contact Enquiry Section -->
+    <section id="landing-contact" class="py-16 lg:py-20 px-4 lg:px-8 bg-obsidian-950/80">
+      <div class="max-w-3xl mx-auto space-y-8">
+        
+        <div class="text-center space-y-2">
+          <div class="text-xs font-mono text-cyan-400 uppercase tracking-widest font-bold">
+            COMMERCIAL & REGULATORY LIAISON
+          </div>
+          <h2 class="text-2xl sm:text-4xl font-extrabold text-white">
+            Initiate Enterprise Partnership Enquiry
+          </h2>
+          <p class="text-xs sm:text-sm text-slate-400 font-sans">
+            Connect with our aerospace systems engineering team to schedule a technical evaluation briefing or discuss sovereign airspace integration.
+          </p>
+        </div>
+
+        <div class="obsidian-card tactical-brackets rounded-xl p-6 sm:p-8 border border-cyan-500/30">
+          <form id="landing-enquiry-form" onsubmit="event.preventDefault(); window.submitPartnershipEnquiry();" class="space-y-4 font-mono text-xs">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="text-slate-400 block mb-1">Full Name & Corporate Title</label>
+                <input type="text" id="enquiry-name" required placeholder="e.g. Captain Tariq Al-Mansoor, VP Flight Ops" class="w-full bg-obsidian-900 border border-slate-700 rounded px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400">
+              </div>
+              <div>
+                <label class="text-slate-400 block mb-1">Airline Carrier / Civil Authority</label>
+                <input type="text" id="enquiry-org" required placeholder="e.g. Emirates SkyCargo / Qatar Civil Aviation" class="w-full bg-obsidian-900 border border-slate-700 rounded px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="text-slate-400 block mb-1">Corporate / Government Email</label>
+                <input type="email" id="enquiry-email" required placeholder="e.g. ops.director@skycargo.ae" class="w-full bg-obsidian-900 border border-slate-700 rounded px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400">
+              </div>
+              <div>
+                <label class="text-slate-400 block mb-1">Area of Strategic Interest</label>
+                <select id="enquiry-interest" class="w-full bg-obsidian-900 border border-slate-700 rounded px-3 py-2 text-cyan-300 focus:outline-none focus:border-cyan-400">
+                  <option value="commercial_api">Commercial B2B Carrier API Licensing ($7,500/mo)</option>
+                  <option value="sovereign_defense">Sovereign Airspace Deployment & Private Node</option>
+                  <option value="technical_evaluation">Accelerator / Technical Pilot Evaluation</option>
+                  <option value="investor_relations">Investor & Venture Directorate Liaison</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label class="text-slate-400 block mb-1">Fleet Scope / Integration Details</label>
+              <textarea id="enquiry-message" rows="3" placeholder="Provide details on target air corridors, fleet size, transponder protocols, or custom radar feed integrations..." class="w-full bg-obsidian-900 border border-slate-700 rounded px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"></textarea>
+            </div>
+
+            <div class="pt-2">
+              <button type="submit" id="btn-enquiry-submit" class="w-full py-3 rounded bg-gradient-to-r from-cyan-500 to-cyan-400 hover:from-cyan-400 hover:to-cyan-300 text-obsidian-950 font-bold text-xs shadow-glow-cyan transition-all flex items-center justify-center gap-2">
+                <svg class="w-4 h-4 text-obsidian-950" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                </svg>
+                <span>TRANSMIT SECURE PARTNERSHIP ENQUIRY</span>
+              </button>
+            </div>
+          </form>
+
+          <!-- Enquiry Success Banner -->
+          <div id="enquiry-success-banner" class="hidden mt-4 p-4 rounded-lg bg-emerald-950/80 border border-emerald-500/60 font-mono text-xs text-emerald-300 animate-in fade-in">
+            <div class="flex items-center space-x-2 font-bold mb-1">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+              <span>PARTNERSHIP ENQUIRY TRANSMITTED</span>
+            </div>
+            <p class="text-[11px] text-emerald-200/90 leading-relaxed">
+              Your inquiry has been assigned diplomatic reference <strong id="enquiry-ref-id" class="text-white">AT-ENQ-2026-9481</strong>. An aerospace systems engineer from Akanno Tech Labs Limited will contact you within 2 business hours.
+            </p>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Landing Footer -->
+    <footer class="border-t border-cyan-500/15 bg-obsidian-950 px-4 lg:px-8 py-6 font-mono text-xs text-slate-500">
+      <div class="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div>
+          <span class="text-slate-300 font-bold">SKYGRID INTELLIGENCE</span> • COPYRIGHT © 2026 AKANNO TECH LABS LIMITED. ALL RIGHTS RESERVED.
+        </div>
+        <div class="flex items-center space-x-4">
+          <a href="#landing-disclosure" class="text-amber-400 hover:underline">Safety Disclosure</a>
+          <span class="text-slate-700">•</span>
+          <button onclick="window.navigateTo('/dashboard')" class="text-cyan-400 hover:underline font-bold">
+            Live Command Dashboard ➔
+          </button>
+        </div>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- ==================== VIEW 2: TACTICAL COMMAND DASHBOARD (ROUTE: /dashboard) ==================== -->
+  <div id="dashboard-view" class="relative z-10 flex flex-col min-h-screen hidden">
 
     <!-- ==================== BLOOMBERG-GRADE TELEMETRY & CARGO TICKER TAPE ==================== -->
     <div class="border-b border-cyan-500/15 bg-[#02050b]/95 backdrop-blur-md px-4 py-1.5 flex items-center justify-between text-[10px] font-mono select-none overflow-hidden">
@@ -361,12 +1167,28 @@
       </div>
     </div>
 
+    <!-- RENDER CLOUD COLD-START DETECTOR BANNER -->
+    <div id="render-cold-start-banner" class="hidden border-b border-amber-500/40 bg-amber-950/90 text-amber-200 px-4 py-1.5 text-xs font-mono flex items-center justify-between animate-in fade-in">
+      <div class="flex items-center space-x-2">
+        <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+        <span class="font-bold text-amber-300">CLOUD INSTANCE INITIALIZING:</span>
+        <span class="text-amber-100">Render FastAPI backend is waking up (free tier cold-start mitigation). Cached flight telemetry stream active.</span>
+      </div>
+      <span class="text-[10px] text-amber-400 font-bold border border-amber-500/50 px-2 py-0.5 rounded bg-amber-900/50">STANDBY RESILIENT BUFFER</span>
+    </div>
+
     <!-- ==================== TOP NAVIGATION ==================== -->
     <header class="border-b border-cyan-500/20 bg-obsidian-900/90 backdrop-blur-md sticky top-0 z-50 px-4 lg:px-6 py-2.5">
       <div class="flex flex-wrap items-center justify-between gap-3">
         
-        <!-- Brand & Division -->
+        <!-- Brand, Return Link & Division -->
         <div class="flex items-center space-x-3.5">
+          <!-- Quick Return to Public Landing Page -->
+          <button onclick="window.navigateTo('/')" title="Return to Public Landing Page" class="px-2.5 py-1.5 rounded bg-obsidian-850 hover:bg-slate-800 border border-slate-700 hover:border-cyan-400 text-slate-300 hover:text-white text-xs font-mono font-semibold transition-all flex items-center gap-1.5 shadow-sm group">
+            <span class="group-hover:-translate-x-0.5 transition-transform">←</span>
+            <span>OVERVIEW</span>
+          </button>
+
           <div class="relative flex items-center justify-center w-9 h-9 rounded bg-obsidian-800 border border-cyan-400/40 shadow-glow-cyan">
             <svg class="w-5 h-5 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="12" cy="12" r="10"/>
@@ -386,6 +1208,9 @@
               </span>
               <span class="px-1.5 py-0.5 text-[9px] font-mono tracking-widest uppercase bg-cyan-950/80 border border-cyan-500/40 text-cyan-300 rounded font-semibold">
                 PROD B2B v4.9
+              </span>
+              <span class="hidden sm:inline-block px-1.5 py-0.5 text-[9px] font-mono tracking-widest uppercase bg-amber-950/90 border border-amber-600/60 text-amber-300 rounded font-bold">
+                EVALUATION MODE
               </span>
             </div>
             <div class="flex items-center space-x-2 text-[11px] text-slate-400 font-mono">

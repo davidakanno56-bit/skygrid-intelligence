@@ -32,10 +32,11 @@ app = FastAPI(
     redoc_url="/api/redoc"
 )
 
-# Enable CORS for cross-origin dispatch integrations
+# Enable CORS for cross-origin dispatch integrations and Vercel deployments
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1|.*\.vercel\.app)(:\d+)?",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -408,6 +409,8 @@ def get_audit_logs(
 
 # ==================== SYSTEM & INTEGRATION STATUS ====================
 
+@app.get("/api/v1/health", summary="Standard Liveness & Health Probe")
+@app.get("/healthz", summary="Cloud Health Check Probe")
 @app.get("/api/v1/system/status", summary="System Health & Operational Status")
 def get_system_status():
     stats = ingestion_pipeline.get_cache_stats()
@@ -470,8 +473,9 @@ node_modules_path = BASE_PATH / "node_modules"
 if node_modules_path.exists():
     app.mount("/node_modules", StaticFiles(directory=str(node_modules_path)), name="node_modules")
 
-# Root dashboard route
+# Root and SPA routes
 @app.get("/", response_class=HTMLResponse)
+@app.get("/dashboard", response_class=HTMLResponse)
 def serve_dashboard():
     dist_index = dist_path / "index.html"
     if dist_index.exists():

@@ -38,6 +38,8 @@ declare global {
     initiateEnterpriseCheckout: () => void;
     completeEnterpriseOrder: () => void;
     downloadCurrentInvoice: () => void;
+    navigateTo: (route: string) => void;
+    submitPartnershipEnquiry: () => void;
     FlutterwaveCheckout?: (config: unknown) => void;
   }
 }
