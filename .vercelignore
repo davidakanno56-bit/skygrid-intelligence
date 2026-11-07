@@ -1,0 +1,22 @@
+# Vercel Deployment Ignore Configuration
+# Exclude Python backend and local runtime files (hosted separately on Render)
+
+# Python backend application & entrypoints
+backend/
+server.py
+test_suite.py
+requirements.txt
+*.py
+*.pyc
+__pycache__/
+
+# SQLite & local data directories
+data/
+*.db
+*.sqlite
+*.sqlite3
+
+# Local environment & secret files
+.env
+.env.local
+
