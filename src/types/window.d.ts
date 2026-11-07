@@ -40,6 +40,8 @@ declare global {
     downloadCurrentInvoice: () => void;
     navigateTo: (route: string) => void;
     submitPartnershipEnquiry: () => void;
+    setLandingScenario: (scenario: string) => void;
+    setLandingCurrency: (curr: string) => void;
     FlutterwaveCheckout?: (config: unknown) => void;
   }
 }

@@ -54,6 +54,7 @@ export function apiFetch(path: string, options?: RequestInit): Promise<Response>
 /**
  * Client-Side SPA Navigation Router
  * Seamlessly routes between the Public Landing Page (/) and Command Center (/dashboard)
+ * Enforces a modern light-themed aesthetic on the landing page and dark operations aesthetic on the dashboard
  */
 export function navigateTo(route: string, updateHistory = true): void {
   audio.playClick();
@@ -67,6 +68,10 @@ export function navigateTo(route: string, updateHistory = true): void {
   const dashboardEl = document.getElementById('dashboard-view');
 
   if (normalizedRoute === '/dashboard') {
+    // Switch to Dark Aviation Operations HUD
+    document.documentElement.classList.add('dark');
+    document.body.classList.remove('light-theme', 'bg-slate-50', 'text-slate-900');
+    document.body.classList.add('dark-theme', 'bg-obsidian-900', 'text-slate-100');
     landingEl?.classList.add('hidden');
     dashboardEl?.classList.remove('hidden');
     document.title = 'SkyGrid Intelligence | Live Aviation Command Center | Akanno Tech Labs';
@@ -80,11 +85,163 @@ export function navigateTo(route: string, updateHistory = true): void {
       }
     }, 150);
   } else {
+    // Switch to Modern Light Aerospace Public Experience
+    document.documentElement.classList.remove('dark');
+    document.body.classList.remove('dark-theme', 'bg-obsidian-900', 'text-slate-100');
+    document.body.classList.add('light-theme', 'bg-slate-50', 'text-slate-900');
     dashboardEl?.classList.add('hidden');
     landingEl?.classList.remove('hidden');
     document.title = 'SkyGrid Intelligence | Sovereign Aviation Risk Intelligence | Akanno Tech Labs';
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
+}
+
+export interface LandingScenario {
+  id: string;
+  name: string;
+  hub: string;
+  cri: number;
+  status: string;
+  statusBadgeClass: string;
+  separationNm: number;
+  windshearKts: number;
+  activeVectors: number;
+  directive: string;
+  directiveClass: string;
+}
+
+const DEFAULT_LANDING_SCENARIO: LandingScenario = {
+  id: 'dxb',
+  name: 'DXB-DWC Megahub Transcontinental Corridor',
+  hub: 'OMDB / DXB Dubai Primary',
+  cri: 14.2,
+  status: 'NOMINAL / LAMINAR ENVELOPE',
+  statusBadgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+  separationNm: 6.0,
+  windshearKts: 8.2,
+  activeVectors: 14,
+  directive: 'LAMINAR SEPARATION MAINTAINED — ZERO CONFLICT DETECTED',
+  directiveClass: 'bg-emerald-50 text-emerald-900 border-emerald-200',
+};
+
+const LANDING_SCENARIOS: Record<string, LandingScenario> = {
+  dxb: DEFAULT_LANDING_SCENARIO,
+  doh: {
+    id: 'doh',
+    name: 'DOH-DXB Superway Convective Anomaly',
+    hub: 'OTHH / DOH Doha Superway',
+    cri: 28.6,
+    status: 'HAZARD ADVISORY (CRITICAL > 25%)',
+    statusBadgeClass: 'bg-amber-100 text-amber-900 border-amber-300',
+    separationNm: 4.8,
+    windshearKts: 19.4,
+    activeVectors: 19,
+    directive: 'RECOMMENDED STEP-CLIMB FL340 + 15KT SEPARATION VECTOR',
+    directiveClass: 'bg-amber-50 text-amber-950 border-amber-300',
+  },
+  sin: {
+    id: 'sin',
+    name: 'SIN-DXB Eurasia Axis Wake Contention',
+    hub: 'WSSS / SIN Singapore Axis',
+    cri: 34.1,
+    status: 'ACTIVE DECONFLICTION REQUIRED',
+    statusBadgeClass: 'bg-rose-100 text-rose-900 border-rose-300',
+    separationNm: 3.9,
+    windshearKts: 12.0,
+    activeVectors: 22,
+    directive: 'AUTONOMOUS VECTOR INSERTION TO RESTORE 6.0 NM WAKE SEPARATION',
+    directiveClass: 'bg-rose-50 text-rose-950 border-rose-300',
+  },
+};
+
+/**
+ * Interactive Landing Page Scenario Switcher
+ */
+export function setLandingScenario(scenarioKey: string): void {
+  audio.playClick();
+  const scenario: LandingScenario = LANDING_SCENARIOS[scenarioKey] ?? DEFAULT_LANDING_SCENARIO;
+
+  ['dxb', 'doh', 'sin'].forEach((key) => {
+    const btn = document.getElementById(`landing-scen-tab-${key}`);
+    if (btn) {
+      if (key === scenarioKey) {
+        btn.classList.add('bg-sky-600', 'text-white', 'shadow-sm');
+        btn.classList.remove('bg-white', 'text-slate-700', 'border-slate-200');
+      } else {
+        btn.classList.remove('bg-sky-600', 'text-white', 'shadow-sm');
+        btn.classList.add('bg-white', 'text-slate-700', 'border-slate-200');
+      }
+    }
+  });
+
+  const hubEl = document.getElementById('scen-hub-name');
+  const criValEl = document.getElementById('scen-cri-val');
+  const criBarEl = document.getElementById('scen-cri-bar');
+  const statusBadgeEl = document.getElementById('scen-status-badge');
+  const sepEl = document.getElementById('scen-separation');
+  const windEl = document.getElementById('scen-windshear');
+  const directiveEl = document.getElementById('scen-directive');
+
+  if (hubEl) hubEl.textContent = scenario.name;
+  if (criValEl) criValEl.textContent = `${scenario.cri.toFixed(1)}%`;
+  if (criBarEl) {
+    criBarEl.style.width = `${Math.min(scenario.cri * 2.8, 100)}%`;
+    if (scenario.cri > 30) {
+      criBarEl.className = 'h-full bg-rose-500 transition-all duration-500';
+    } else if (scenario.cri > 20) {
+      criBarEl.className = 'h-full bg-amber-500 transition-all duration-500';
+    } else {
+      criBarEl.className = 'h-full bg-emerald-500 transition-all duration-500';
+    }
+  }
+  if (statusBadgeEl) {
+    statusBadgeEl.textContent = scenario.status;
+    statusBadgeEl.className = `px-2.5 py-1 rounded-full text-xs font-mono font-bold border ${scenario.statusBadgeClass}`;
+  }
+  if (sepEl) sepEl.textContent = `${scenario.separationNm.toFixed(1)} NM`;
+  if (windEl) windEl.textContent = `${scenario.windshearKts.toFixed(1)} KTS`;
+  if (directiveEl) {
+    directiveEl.textContent = scenario.directive;
+    directiveEl.className = `p-3 rounded-lg font-mono text-xs font-semibold border ${scenario.directiveClass}`;
+  }
+}
+
+const DEFAULT_LANDING_RATES = { regional: '$2,500', carrier: '$7,500', sovereign: '$25,000' };
+
+const LANDING_CURRENCY_RATES: Record<string, { regional: string; carrier: string; sovereign: string }> = {
+  USD: DEFAULT_LANDING_RATES,
+  EUR: { regional: '€2,350', carrier: '€7,050', sovereign: '€23,500' },
+  GBP: { regional: '£1,980', carrier: '£5,940', sovereign: '£19,800' },
+  AED: { regional: 'AED 9,180', carrier: 'AED 27,550', sovereign: 'AED 91,800' },
+};
+
+/**
+ * Interactive Landing Page Currency Selector
+ */
+export function setLandingCurrency(currency: string): void {
+  audio.playClick();
+  const rates = LANDING_CURRENCY_RATES[currency] ?? DEFAULT_LANDING_RATES;
+
+  ['USD', 'EUR', 'GBP', 'AED'].forEach((c) => {
+    const btn = document.getElementById(`landing-curr-${c}`);
+    if (btn) {
+      if (c === currency) {
+        btn.classList.add('bg-sky-600', 'text-white', 'shadow-sm');
+        btn.classList.remove('bg-white', 'text-slate-700', 'border-slate-300');
+      } else {
+        btn.classList.remove('bg-sky-600', 'text-white', 'shadow-sm');
+        btn.classList.add('bg-white', 'text-slate-700', 'border-slate-300');
+      }
+    }
+  });
+
+  const pReg = document.getElementById('landing-price-reg');
+  const pCar = document.getElementById('landing-price-car');
+  const pSov = document.getElementById('landing-price-sov');
+
+  if (pReg) pReg.textContent = rates.regional;
+  if (pCar) pCar.textContent = rates.carrier;
+  if (pSov) pSov.textContent = rates.sovereign;
 }
 
 /**
@@ -1737,6 +1894,8 @@ window.completeEnterpriseOrder = completeEnterpriseOrder;
 window.downloadCurrentInvoice = downloadCurrentInvoice;
 window.navigateTo = navigateTo;
 window.submitPartnershipEnquiry = submitPartnershipEnquiry;
+window.setLandingScenario = setLandingScenario;
+window.setLandingCurrency = setLandingCurrency;
 
 // Boot up sequence
 window.addEventListener('DOMContentLoaded', () => {
