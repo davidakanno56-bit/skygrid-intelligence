@@ -294,7 +294,7 @@ export function submitPartnershipEnquiry(): void {
 
 // Map of Air Corridors indexed by ID
 const CORRIDOR_MAP: Record<string, CorridorMetric> = {};
-DEFAULT_AIR_CORRIDORS.forEach((c) => {
+DEFAULT_AIR_CORRIDORS.forEach((c: CorridorMetric) => {
   CORRIDOR_MAP[c.id] = c;
 });
 
