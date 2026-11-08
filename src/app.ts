@@ -76,6 +76,11 @@ export function navigateTo(route: string, updateHistory = true): void {
     dashboardEl?.classList.remove('hidden');
     document.title = 'SkyGrid Intelligence | Live Aviation Command Center | Akanno Tech Labs';
     
+    // Refresh vectors and telemetry feed immediately on dashboard view entry
+    renderFlightFeed();
+    updateClocks();
+    fetchLiveBackendTelemetry();
+
     // Resize MapLibre canvas on reveal so viewport calculates proper dimensions
     setTimeout(() => {
       if (map) {
@@ -92,7 +97,18 @@ export function navigateTo(route: string, updateHistory = true): void {
     dashboardEl?.classList.add('hidden');
     landingEl?.classList.remove('hidden');
     document.title = 'SkyGrid Intelligence | Sovereign Aviation Risk Intelligence | Akanno Tech Labs';
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (typeof window !== 'undefined' && window.location.hash) {
+      try {
+        const targetEl = document.querySelector(window.location.hash);
+        if (targetEl) {
+          targetEl.scrollIntoView({ behavior: 'smooth' });
+        }
+      } catch {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    } else if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   }
 }
 
@@ -1898,7 +1914,7 @@ window.setLandingScenario = setLandingScenario;
 window.setLandingCurrency = setLandingCurrency;
 
 // Boot up sequence
-window.addEventListener('DOMContentLoaded', () => {
+function initApp(): void {
   // Initialize SPA Route based on current browser URL
   const initialPath = window.location.pathname;
   if (initialPath === '/dashboard' || initialPath.startsWith('/dashboard')) {
@@ -1948,6 +1964,14 @@ window.addEventListener('DOMContentLoaded', () => {
   setInterval(() => {
     fetchLiveBackendTelemetry();
   }, 3000);
-});
+}
+
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') {
+    window.addEventListener('DOMContentLoaded', initApp);
+  } else {
+    initApp();
+  }
+}
 
 
