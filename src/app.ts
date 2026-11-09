@@ -364,29 +364,30 @@ const CORRIDOR_CAMERA_TARGETS: Record<string, CorridorCameraPreset> = {
   }
 };
 
-// Tactical Dark Raster Basemap Specification (Zero external font/glyph dependencies)
-const TACTICAL_DARK_BASEMAP_STYLE: maplibregl.StyleSpecification = {
+// High-Fidelity Keyless Vector Basemap (OpenFreeMap Dark - Zero API Key, Zero Watermarks)
+const TACTICAL_DARK_BASEMAP_STYLE = 'https://tiles.openfreemap.org/styles/dark';
+
+// Keyless High-Performance Dark Raster Fallback (Esri World Dark Gray Canvas)
+const TACTICAL_DARK_RASTER_FALLBACK: maplibregl.StyleSpecification = {
   version: 8,
   sources: {
-    'carto-dark': {
+    'esri-dark': {
       type: 'raster',
       tiles: [
-        'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
-        'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
-        'https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
-        'https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'
+        'https://services.arcgisonline.com/arcgis/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+        'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}'
       ],
       tileSize: 256,
-      attribution: '© OpenStreetMap contributors, © CARTO'
+      attribution: 'Esri, DeLorme, NAVTEQ'
     }
   },
   layers: [
     {
-      id: 'carto-dark-tiles',
+      id: 'esri-dark-tiles',
       type: 'raster',
-      source: 'carto-dark',
+      source: 'esri-dark',
       minzoom: 0,
-      maxzoom: 20
+      maxzoom: 16
     }
   ]
 };
@@ -587,6 +588,11 @@ export function initMapLibreRadar(): void {
 
     map.on('error', (e: unknown) => {
       console.warn('[MAPLIBRE WARNING]', e);
+      if (!mapInitialized && map) {
+        try {
+          map.setStyle(TACTICAL_DARK_RASTER_FALLBACK);
+        } catch {}
+      }
     });
 
   } catch (err) {
