@@ -17,7 +17,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
   <!-- MapLibre GL CSS -->
-  <link rel="stylesheet" href="/src/maplibre/maplibre-gl.css" />
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
 
   <!-- Flutterwave Inline Checkout SDK (Production B2B Global Card & Apple Pay) -->
   <script src="https://checkout.flutterwave.com/v3.js"></script>
@@ -199,9 +199,9 @@
     #tactical-map-container canvas {
       outline: none;
     }
-    /* WebGL / CSS Tint on Carto Dark Matter Vector Map for Obsidian & Cyan Aesthetic */
+    /* Tactical MapLibre Canvas Styling */
     #tactical-map-container .maplibregl-canvas {
-      filter: brightness(0.92) contrast(1.2) saturate(1.25);
+      outline: none;
     }
     /* Tactical MapLibre Popups */
     .maplibregl-popup {
@@ -1661,10 +1661,20 @@
             </div>
 
             <!-- MAPLIBRE GL JS REAL GEOGRAPHIC VECTOR RADAR & TACTICAL HUD -->
-            <div id="radar-canvas-container" class="relative flex-1 w-full h-full bg-[#02050b] overflow-hidden">
+            <div id="radar-canvas-container" class="relative flex-1 w-full min-h-[360px] bg-[#02050b] overflow-hidden">
               
               <!-- Real Geographic MapLibre Vector Map Canvas -->
               <div id="tactical-map-container" class="absolute inset-0 w-full h-full"></div>
+
+              <!-- WebGL / Radar Engine Fallback and Error State -->
+              <div id="radar-webgl-fallback" class="hidden absolute inset-0 z-20 flex flex-col items-center justify-center p-6 text-center bg-[#02050b]/95 backdrop-blur-sm font-mono text-xs">
+                <div class="w-12 h-12 rounded-full border border-amber-500/50 flex items-center justify-center text-amber-400 text-xl mb-3 animate-pulse">⚠</div>
+                <div class="text-sm font-bold text-white mb-1">RADAR GRAPHICS ENGINE NOTICE</div>
+                <p class="text-slate-400 max-w-sm mb-4">Hardware-accelerated WebGL radar projection could not be initialized or was interrupted. Check your browser GPU settings.</p>
+                <button type="button" onclick="window.reinitRadar()" class="px-4 py-2 rounded bg-cyan-500 hover:bg-cyan-400 text-obsidian-950 font-bold transition-all shadow-glow-cyan flex items-center gap-1.5">
+                  <span>↻ RETRY RADAR ENGINE</span>
+                </button>
+              </div>
 
               <!-- Tactical HUD Overlay Crosshairs -->
               <div class="absolute inset-0 pointer-events-none z-10">

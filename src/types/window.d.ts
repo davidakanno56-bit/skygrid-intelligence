@@ -42,9 +42,13 @@ declare global {
     submitPartnershipEnquiry: () => void;
     setLandingScenario: (scenario: string) => void;
     setLandingCurrency: (curr: string) => void;
+    reinitRadar: () => void;
+    viewLicensingPlans: () => void;
+    requestEnterpriseAccess: () => void;
+    requestEnterprisePlan: (planName: string) => void;
     FlutterwaveCheckout?: (config: unknown) => void;
   }
 }
 
-export {};
+export { };
 

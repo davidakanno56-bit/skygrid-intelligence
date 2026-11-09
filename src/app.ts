@@ -15,10 +15,7 @@ import {
 } from './types/telemetry';
 import {
   ApiKeyRecord,
-  CommercialTierKey,
-  InitiateCheckoutPayload,
-  InitiateCheckoutResponse,
-  CompleteCheckoutResponse
+  CommercialTierKey
 } from './types/licensing';
 import {
   AirportHub,
@@ -229,6 +226,7 @@ const LANDING_CURRENCY_RATES: Record<string, { regional: string; carrier: string
   EUR: { regional: '€2,350', carrier: '€7,050', sovereign: '€23,500' },
   GBP: { regional: '£1,980', carrier: '£5,940', sovereign: '£19,800' },
   AED: { regional: 'AED 9,180', carrier: 'AED 27,550', sovereign: 'AED 91,800' },
+  NGN: { regional: '₦3,750,000', carrier: '₦11,250,000', sovereign: '₦37,500,000' },
 };
 
 /**
@@ -238,7 +236,7 @@ export function setLandingCurrency(currency: string): void {
   audio.playClick();
   const rates = LANDING_CURRENCY_RATES[currency] ?? DEFAULT_LANDING_RATES;
 
-  ['USD', 'EUR', 'GBP', 'AED'].forEach((c) => {
+  ['USD', 'EUR', 'GBP', 'AED', 'NGN'].forEach((c) => {
     const btn = document.getElementById(`landing-curr-${c}`);
     if (btn) {
       if (c === currency) {
@@ -366,13 +364,107 @@ const CORRIDOR_CAMERA_TARGETS: Record<string, CorridorCameraPreset> = {
   }
 };
 
-// MapLibre GL Instances & Tracking
+// Tactical Dark Raster Basemap Specification (Zero external font/glyph dependencies)
+const TACTICAL_DARK_BASEMAP_STYLE: maplibregl.StyleSpecification = {
+  version: 8,
+  sources: {
+    'carto-dark': {
+      type: 'raster',
+      tiles: [
+        'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+        'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+        'https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+        'https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'
+      ],
+      tileSize: 256,
+      attribution: '© OpenStreetMap contributors, © CARTO'
+    }
+  },
+  layers: [
+    {
+      id: 'carto-dark-tiles',
+      type: 'raster',
+      source: 'carto-dark',
+      minzoom: 0,
+      maxzoom: 20
+    }
+  ]
+};
+
+// Hardware WebGL Capabilities Detector
+function isWebGLSupported(): boolean {
+  try {
+    const canvas = document.createElement('canvas');
+    return !!(window.WebGLRenderingContext && (canvas.getContext('webgl') || canvas.getContext('experimental-webgl')));
+  } catch {
+    return false;
+  }
+}
+
+// MapLibre GL Instances & Lifecycle Tracking
 let map: maplibregl.Map | null = null;
 let mapInitialized: boolean = false;
+let mapInitializing: boolean = false;
+let mapContainerObserver: ResizeObserver | null = null;
+let radarResizeObserver: ResizeObserver | null = null;
 const aircraftMarkers: Record<string, { marker: maplibregl.Marker; el: HTMLElement; flight: FlightVector }> = {};
 let hubMarkers: maplibregl.Marker[] = [];
 let movementInterval: ReturnType<typeof setInterval> | null = null;
+let azimuthInterval: ReturnType<typeof setInterval> | null = null;
 let currentSweepAzimuth: number = 184;
+
+// Teardown and Reset Tactical Radar Engine
+export function cleanupRadar(): void {
+  if (movementInterval) {
+    clearInterval(movementInterval);
+    movementInterval = null;
+  }
+  if (azimuthInterval) {
+    clearInterval(azimuthInterval);
+    azimuthInterval = null;
+  }
+  Object.keys(aircraftMarkers).forEach((id) => {
+    try {
+      const entry = aircraftMarkers[id];
+      if (entry) {
+        entry.marker.remove();
+      }
+    } catch {}
+    delete aircraftMarkers[id];
+  });
+  hubMarkers.forEach((m) => {
+    try {
+      m.remove();
+    } catch {}
+  });
+  hubMarkers = [];
+  if (radarResizeObserver) {
+    radarResizeObserver.disconnect();
+    radarResizeObserver = null;
+  }
+  if (mapContainerObserver) {
+    mapContainerObserver.disconnect();
+    mapContainerObserver = null;
+  }
+  if (map) {
+    try {
+      map.remove();
+    } catch (e) {
+      console.warn('[RADAR ENGINE CLEANUP]', e);
+    }
+    map = null;
+  }
+  mapInitialized = false;
+  mapInitializing = false;
+}
+
+// Force Reinitialization of Tactical Radar Engine
+export function reinitRadar(): void {
+  const fallbackEl = document.getElementById('radar-webgl-fallback');
+  if (fallbackEl) fallbackEl.classList.add('hidden');
+  cleanupRadar();
+  initMapLibreRadar();
+}
 
 // Precise geodesic circle generator for tactical range rings
 function createRangeRingCoordinates(center: [number, number], radiusKm: number, points: number = 64): [number, number][] {
@@ -407,15 +499,47 @@ function generateCurvedArc(start: [number, number], end: [number, number], numPo
 
 // Initialize MapLibre GL Vector Radar
 export function initMapLibreRadar(): void {
+  if (map) {
+    map.resize();
+    return;
+  }
+  if (mapInitializing) return;
+
   const container = document.getElementById('tactical-map-container') || document.getElementById('radar-canvas-container');
   if (!container) return;
 
-  const cartoDarkStyle = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
+  const fallbackEl = document.getElementById('radar-webgl-fallback');
+
+  if (!isWebGLSupported()) {
+    if (fallbackEl) fallbackEl.classList.remove('hidden');
+    console.warn('[RADAR ENGINE] Hardware WebGL context not available');
+    return;
+  }
+
+  // Prevent zero-dimension initialization crashes when dashboard is hidden
+  if (container.clientWidth === 0 || container.clientHeight === 0) {
+    if (!mapContainerObserver) {
+      mapContainerObserver = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          if (entry.contentRect.width > 0 && entry.contentRect.height > 0) {
+            mapContainerObserver?.disconnect();
+            mapContainerObserver = null;
+            initMapLibreRadar();
+            break;
+          }
+        }
+      });
+      mapContainerObserver.observe(container);
+    }
+    return;
+  }
+
+  mapInitializing = true;
 
   try {
     map = new maplibregl.Map({
       container: container,
-      style: cartoDarkStyle,
+      style: TACTICAL_DARK_BASEMAP_STYLE,
       center: [55.3657, 25.2532], // Centered on OMDB / DXB
       zoom: 9.0,
       pitch: 45, // Tilted 3D pitch
@@ -435,12 +559,30 @@ export function initMapLibreRadar(): void {
 
     map.on('load', () => {
       mapInitialized = true;
+      mapInitializing = false;
+      if (fallbackEl) fallbackEl.classList.add('hidden');
+
       addRangeRingsLayers();
       addFlightPathArcLayers();
       renderHubBeaconMarkers();
       renderMovingAircraftMarkers();
       startAircraftMovementLoop();
       startAzimuthSweepSimulation();
+
+      // Ensure proper canvas dimensioning
+      setTimeout(() => {
+        map?.resize();
+      }, 60);
+
+      // Attach resize observer to handle layout / view shifts
+      if (!radarResizeObserver && container) {
+        radarResizeObserver = new ResizeObserver(() => {
+          if (map) {
+            map.resize();
+          }
+        });
+        radarResizeObserver.observe(container);
+      }
     });
 
     map.on('error', (e: unknown) => {
@@ -448,7 +590,9 @@ export function initMapLibreRadar(): void {
     });
 
   } catch (err) {
+    mapInitializing = false;
     console.error('[MAPLIBRE INIT ERROR]', err);
+    if (fallbackEl) fallbackEl.classList.remove('hidden');
   }
 }
 
@@ -729,7 +873,11 @@ function startAircraftMovementLoop(): void {
 
 // Tactical Azimuth Sweep Compass Simulator
 function startAzimuthSweepSimulation(): void {
-  setInterval(() => {
+  if (azimuthInterval) {
+    clearInterval(azimuthInterval);
+    azimuthInterval = null;
+  }
+  azimuthInterval = setInterval(() => {
     currentSweepAzimuth = (currentSweepAzimuth + 2) % 360;
     const azEl = document.getElementById('radar-azimuth');
     if (azEl) {
@@ -1214,8 +1362,6 @@ export const CURRENCY_RATES: Record<string, { symbol: string; rate: number; name
 };
 
 let currentBillingCurrency: string = 'USD';
-let currentPaymentRail: 'card' | 'wire' = 'card';
-let activeOrderRef: string | null = null;
 
 export function formatCurrencyAmount(amountUsd: number, currency: string = currentBillingCurrency): { formatted: string; raw: number; symbol: string } {
   const spec = CURRENCY_RATES[currency.toUpperCase()] ?? CURRENCY_RATES['USD']!;
@@ -1266,7 +1412,6 @@ export function setBillingCurrency(currency: string): void {
 
 export function selectPaymentRail(rail: 'card' | 'wire'): void {
   audio.playClick();
-  currentPaymentRail = rail;
   const btnCard = document.getElementById('rail-btn-card');
   const btnWire = document.getElementById('rail-btn-wire');
   const secCard = document.getElementById('drawer-card-section');
@@ -1337,6 +1482,60 @@ export function closeEnterprisePortal(): void {
   audio.playClick();
   const modal = document.getElementById('enterprise-portal-modal');
   modal?.classList.add('hidden');
+  if (map) {
+    setTimeout(() => {
+      map?.resize();
+    }, 100);
+  }
+}
+
+export function viewLicensingPlans(): void {
+  closeEnterprisePortal();
+  navigateTo('/', true);
+  setTimeout(() => {
+    const el = document.getElementById('landing-licensing');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, 120);
+}
+
+export function requestEnterpriseAccess(): void {
+  closeEnterprisePortal();
+  navigateTo('/', true);
+  setTimeout(() => {
+    const el = document.getElementById('landing-contact');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth' });
+      const nameInput = document.getElementById('enquiry-name') as HTMLInputElement | null;
+      nameInput?.focus();
+    }
+  }, 120);
+}
+
+export function requestEnterprisePlan(planName: string): void {
+  const el = document.getElementById('landing-contact');
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth' });
+  }
+  const interestSelect = document.getElementById('enquiry-interest') as HTMLSelectElement | null;
+  const messageTextarea = document.getElementById('enquiry-message') as HTMLTextAreaElement | null;
+  const nameInput = document.getElementById('enquiry-name') as HTMLInputElement | null;
+
+  if (planName.toLowerCase().includes('regional')) {
+    if (interestSelect) interestSelect.value = 'commercial_api';
+    if (messageTextarea) messageTextarea.value = 'Enquiry for Regional Hub License ($2,500/mo). Requesting DXB corridor telemetry and CRI real-time risk integration.';
+  } else if (planName.toLowerCase().includes('carrier')) {
+    if (interestSelect) interestSelect.value = 'commercial_api';
+    if (messageTextarea) messageTextarea.value = 'Enquiry for Global Cargo Carrier License ($7,500/mo). Requesting multi-corridor autonomous routing directives and 500,000 req/day API access.';
+  } else if (planName.toLowerCase().includes('sovereign')) {
+    if (interestSelect) interestSelect.value = 'sovereign_defense';
+    if (messageTextarea) messageTextarea.value = 'Enquiry for Sovereign Airspace & Defense License ($25,000/mo annual contract). Dedicated node throughput, private cloud vault sync, and raw telemetry feed.';
+  }
+
+  setTimeout(() => {
+    nameInput?.focus();
+  }, 150);
 }
 
 export function switchPortalTab(tabName: string): void {
@@ -1358,7 +1557,6 @@ export function switchPortalTab(tabName: string): void {
 
   if (tabName === 'keys') {
     loadApiKeys();
-    setBillingCurrency(currentBillingCurrency);
   }
   if (tabName === 'webhooks') loadWebhooksAndAlerts();
   if (tabName === 'audit') refreshAuditLogs();
@@ -1409,116 +1607,54 @@ export async function loadApiKeys(): Promise<void> {
   }
 }
 
-export async function initiateEnterpriseCheckout(): Promise<void> {
-  const orgInput = document.getElementById('checkout-org-name') as HTMLInputElement | null;
-  const emailInput = document.getElementById('checkout-billing-email') as HTMLInputElement | null;
-  const tierSelect = document.getElementById('checkout-tier') as HTMLSelectElement | null;
-
-  const orgName = (orgInput?.value ?? '').trim();
-  const email = (emailInput?.value ?? '').trim();
-  const licenseType = tierSelect?.value || 'global_cargo_carrier';
-
-  if (!orgName) {
-    alert('Please enter an Airline or Partner Organization Name.');
-    return;
-  }
-  if (!email || !email.includes('@')) {
-    alert('Please enter a valid Corporate Billing / Accounts Payable Email.');
-    return;
-  }
-
-  audio.playDirectiveChime();
-  const btn = document.getElementById('btn-initiate-checkout') as HTMLButtonElement | null;
-  if (btn) btn.textContent = 'CONNECTING TO ENTERPRISE VAULT...';
-
-  try {
-    const payload: InitiateCheckoutPayload = {
-      organization_name: orgName,
-      billing_email: email,
-      license_type: licenseType,
-      currency: currentBillingCurrency,
-      payment_method: currentPaymentRail
-    };
-
-    const res = await apiFetch('/api/v1/billing/checkout/initiate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.detail || 'Order initialization failed');
-    }
-
-    const data: InitiateCheckoutResponse = await res.json();
-    activeOrderRef = data.order_ref;
-
-    // Reveal order drawer
-    const drawer = document.getElementById('checkout-order-drawer');
-    const orderRefEl = document.getElementById('order-ref-display');
-    const memoRefEl = document.getElementById('wire-memo-ref');
-    const amountEl = document.getElementById('order-amount-display');
-    const statusBadge = document.getElementById('order-status-badge');
-
-    if (drawer) drawer.classList.remove('hidden');
-    if (orderRefEl) orderRefEl.textContent = data.order_ref;
-    if (memoRefEl) memoRefEl.textContent = data.order_ref;
-    if (amountEl) {
-      amountEl.textContent = `${data.currency_symbol} ${Number(data.amount_charged).toLocaleString()} ${data.currency} (≈ $${Number(data.amount_usd).toLocaleString()} USD)`;
-    }
-    if (statusBadge) {
-      statusBadge.textContent = 'AWAITING PAYMENT';
-      statusBadge.className = 'px-2 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-600 text-[10px] font-bold';
-    }
-
-    // Toggle view according to currentPaymentRail
-    selectPaymentRail(currentPaymentRail);
-
-    // Scroll into drawer smoothly
-    drawer?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-
-    if (btn) {
-      btn.innerHTML = `
-        <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-        </svg>
-        ORDER INITIATED (${data.order_ref})
-      `;
-    }
-  } catch (err: unknown) {
-    alert('Checkout initialization error: ' + (err instanceof Error ? err.message : String(err)));
-    if (btn) btn.textContent = 'INITIALIZE SECURE ENTERPRISE CHECKOUT';
-  }
+export function initiateEnterpriseCheckout(): void {
+  alert('Enterprise billing activation is being prepared. Contact our team for licensing enquiries.');
 }
 
-export async function completeEnterpriseOrder(): Promise<void> {
-  if (!activeOrderRef) {
-    alert('Please click "INITIALIZE SECURE ENTERPRISE CHECKOUT" first to create an order reference.');
-    return;
-  }
+export function completeEnterpriseOrder(): void {
+  alert('Enterprise billing activation is being prepared. Contact our team for licensing enquiries.');
+}
+
+export function downloadCurrentInvoice(): void {
+  alert('Enterprise billing activation is being prepared. Contact our team for licensing enquiries.');
+}
+
+export async function generatePartnerApiKey(): Promise<void> {
+  const nameInput = document.getElementById('new-key-org-name') as HTMLInputElement | null;
+  const tierSelect = document.getElementById('new-key-tier') as HTMLSelectElement | null;
+
+  const name = (nameInput?.value ?? '').trim() || 'Emirates SkyCargo Flight Ops';
+  const licenseType = tierSelect?.value || 'regional_hub';
 
   audio.playDirectiveChime();
+  const btn = document.getElementById('btn-generate-key') as HTMLButtonElement | null;
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span>PROVISIONING...</span>';
+  }
+
   try {
-    const res = await apiFetch('/api/v1/billing/checkout/complete', {
+    const res = await apiFetch('/api/v1/auth/keys', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ order_ref: activeOrderRef })
+      body: JSON.stringify({
+        name: name,
+        license_type: licenseType,
+        billing_email: ''
+      })
     });
 
     if (!res.ok) {
       const err = await res.json();
-      throw new Error(err.detail || 'Failed to complete order verification');
+      throw new Error(err.detail || 'Failed to generate token');
     }
 
-    const data: CompleteCheckoutResponse = await res.json();
-
-    // Update status badge
-    const statusBadge = document.getElementById('order-status-badge');
-    if (statusBadge) {
-      statusBadge.textContent = 'PAID & VERIFIED (SETTLED)';
-      statusBadge.className = 'px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-500 text-[10px] font-bold shadow-glow-cyan';
-    }
+    const data: {
+      api_key: string;
+      license_id?: string;
+      monthly_fee_usd?: number;
+      sla_uptime?: string;
+    } = await res.json();
 
     // Reveal token banner
     const banner = document.getElementById('new-key-banner');
@@ -1538,21 +1674,13 @@ export async function completeEnterpriseOrder(): Promise<void> {
 
     loadApiKeys();
   } catch (err: unknown) {
-    alert('Order verification error: ' + (err instanceof Error ? err.message : String(err)));
+    alert('Key Provisioning Error: ' + (err instanceof Error ? err.message : String(err)));
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<span>⚡ PROVISION TOKEN</span>';
+    }
   }
-}
-
-export function downloadCurrentInvoice(): void {
-  if (!activeOrderRef) {
-    alert('Please initialize an enterprise checkout order first to generate a proforma invoice.');
-    return;
-  }
-  audio.playClick();
-  window.open(apiClient.getInvoiceUrl(activeOrderRef), '_blank');
-}
-
-export function generatePartnerApiKey(): void {
-  initiateEnterpriseCheckout();
 }
 
 export function copyRawApiKey(): void {
@@ -1912,6 +2040,10 @@ window.navigateTo = navigateTo;
 window.submitPartnershipEnquiry = submitPartnershipEnquiry;
 window.setLandingScenario = setLandingScenario;
 window.setLandingCurrency = setLandingCurrency;
+window.reinitRadar = reinitRadar;
+window.viewLicensingPlans = viewLicensingPlans;
+window.requestEnterpriseAccess = requestEnterpriseAccess;
+window.requestEnterprisePlan = requestEnterprisePlan;
 
 // Boot up sequence
 function initApp(): void {
