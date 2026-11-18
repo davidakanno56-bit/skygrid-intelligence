@@ -22,6 +22,8 @@ export interface ApiKeyRecord {
   license_id: string;
   monthly_fee_usd: number;
   sla_uptime: string;
+  subscription_status?: string;
+  expires_at?: string;
   created_at?: string;
   last_used_at?: string;
   total_requests: number;

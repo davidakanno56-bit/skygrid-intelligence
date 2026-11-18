@@ -2,6 +2,7 @@ export type RiskSeverity = 'minimal' | 'low' | 'watch' | 'elevated' | 'critical'
 
 export interface FlightVector {
   id: string;
+  icao24?: string;
   callsign: string;
   carrier: string;
   aircraft: string;
@@ -11,6 +12,7 @@ export interface FlightVector {
   destinationCity: string;
   altitude: number; // in feet (e.g. 38000)
   flightLevel: string; // e.g. "FL380"
+  verticalRateFpm?: number; // feet per minute
   speed: number; // knots
   mach: number;
   heading: number; // degrees
@@ -23,6 +25,7 @@ export interface FlightVector {
   cargoWeightTonnes: number;
   transponder: string;
   etaMinutes: number;
+  isSimulated?: boolean;
   hazardNote?: string;
   vectorHistory: [number, number][]; // lat/lng pairs
 }

@@ -119,7 +119,7 @@ class DatabaseManager:
             );
             """)
 
-            # 4. API Keys & Multi-Tenant Commercial Licenses (Zero Free Tier)
+            # 4. API Keys & Multi-Tenant Licenses (Strictly separating DEMO_EVALUATION vs VERIFIED_PAID)
             cur.execute(f"""
             CREATE TABLE IF NOT EXISTS api_keys (
                 id {id_type},
@@ -129,11 +129,14 @@ class DatabaseManager:
                 tier VARCHAR(32) NOT NULL,
                 rate_limit_rpm INTEGER NOT NULL,
                 is_active {bool_type} DEFAULT 1,
-                is_paid_enterprise {bool_type} DEFAULT 1,
+                is_paid_enterprise {bool_type} DEFAULT 0,
                 license_type VARCHAR(64) NOT NULL,
                 license_id VARCHAR(64) NOT NULL,
-                monthly_fee_usd INTEGER NOT NULL,
-                sla_uptime VARCHAR(32) DEFAULT '99.9%',
+                monthly_fee_usd INTEGER NOT NULL DEFAULT 0,
+                sla_uptime VARCHAR(32) DEFAULT 'Evaluation / Best-Effort',
+                subscription_status VARCHAR(32) DEFAULT 'DEMO_EVALUATION',
+                expires_at {ts_type},
+                org_id INTEGER,
                 created_at {ts_type},
                 last_used_at {ts_type},
                 total_requests INTEGER DEFAULT 0
@@ -171,7 +174,36 @@ class DatabaseManager:
             );
             """)
 
-            # 7. Enterprise Billing & Payment Orders (Flutterwave, Paystack, Raenest Wire)
+            # 7. Enterprise Organizations
+            cur.execute(f"""
+            CREATE TABLE IF NOT EXISTS organizations (
+                id {id_type},
+                name VARCHAR(128) NOT NULL,
+                billing_email VARCHAR(128) NOT NULL,
+                country VARCHAR(64) DEFAULT 'NG',
+                status VARCHAR(32) DEFAULT 'PROSPECT',
+                created_at {ts_type}
+            );
+            """)
+
+            # 8. Verified Enterprise Subscriptions (Activated ONLY by signed payment webhooks or admin)
+            cur.execute(f"""
+            CREATE TABLE IF NOT EXISTS subscriptions (
+                id {id_type},
+                org_id INTEGER,
+                license_type VARCHAR(64) NOT NULL,
+                provider VARCHAR(32) NOT NULL,
+                provider_subscription_id VARCHAR(128),
+                status VARCHAR(32) DEFAULT 'INACTIVE',
+                current_period_start {ts_type},
+                current_period_end {ts_type},
+                cancel_at_period_end {bool_type} DEFAULT 0,
+                created_at {ts_type},
+                updated_at {ts_type}
+            );
+            """)
+
+            # 9. Enterprise Billing Orders (Inactive until verified provider credentials are configured)
             cur.execute(f"""
             CREATE TABLE IF NOT EXISTS billing_orders (
                 id {id_type},
@@ -192,13 +224,45 @@ class DatabaseManager:
             );
             """)
 
-            # Migration guard for commercial license columns
+            # 10. Billing Audit Trail (Webhook signature checks, license activations, revocations)
+            cur.execute(f"""
+            CREATE TABLE IF NOT EXISTS billing_audit_events (
+                id {id_type},
+                event_type VARCHAR(64) NOT NULL,
+                provider VARCHAR(32) NOT NULL,
+                reference VARCHAR(128),
+                payload_hash VARCHAR(128),
+                verified {bool_type} DEFAULT 0,
+                actor VARCHAR(128),
+                details TEXT,
+                created_at {ts_type}
+            );
+            """)
+
+            # 11. Commercial & Enterprise Licensing Enquiries
+            cur.execute(f"""
+            CREATE TABLE IF NOT EXISTS enterprise_enquiries (
+                id {id_type},
+                full_name VARCHAR(128) NOT NULL,
+                organization VARCHAR(128) NOT NULL,
+                email VARCHAR(128) NOT NULL,
+                interest_tier VARCHAR(64) NOT NULL,
+                message TEXT,
+                status VARCHAR(32) DEFAULT 'RECEIVED',
+                created_at {ts_type}
+            );
+            """)
+
+            # Migration guard for license columns on existing SQLite/Postgres databases
             for col, col_def in [
-                ("is_paid_enterprise", "INTEGER DEFAULT 1"),
-                ("license_type", "VARCHAR(64) DEFAULT 'regional_hub'"),
-                ("license_id", "VARCHAR(64) DEFAULT 'LIC-ENTERPRISE-2026'"),
-                ("monthly_fee_usd", "INTEGER DEFAULT 2500"),
-                ("sla_uptime", "VARCHAR(32) DEFAULT '99.9%'")
+                ("is_paid_enterprise", "INTEGER DEFAULT 0"),
+                ("license_type", "VARCHAR(64) DEFAULT 'Evaluation Sandbox (Non-Commercial)'"),
+                ("license_id", "VARCHAR(64) DEFAULT 'DEMO-EVAL-2026-001'"),
+                ("monthly_fee_usd", "INTEGER DEFAULT 0"),
+                ("sla_uptime", "VARCHAR(32) DEFAULT 'Evaluation / Best-Effort'"),
+                ("subscription_status", "VARCHAR(32) DEFAULT 'DEMO_EVALUATION'"),
+                ("expires_at", "TEXT"),
+                ("org_id", "INTEGER")
             ]:
                 try:
                     cur.execute(f"ALTER TABLE api_keys ADD COLUMN {col} {col_def};")
@@ -211,80 +275,73 @@ class DatabaseManager:
             conn.close()
 
     def seed_defaults(self):
-        """Seeds initial default API keys and historical data if table is empty."""
+        """Seeds a single clearly-labelled DEMO evaluation key (never fake paid customers)."""
         conn = self.get_connection()
         try:
             cur = conn.cursor()
-            # Check API keys
-            cur.execute("SELECT COUNT(*) as cnt FROM api_keys;")
+            placeholder = "%s" if self.is_postgres else "?"
+
+            # Clean up legacy fabricated demo/test customer records so no fake customers appear
+            legacy_fake_ids = ("LIC-GLO-2026-EK-772", "LIC-REG-2026-FDX-890", "LIC-SOV-2026-AKANNO-001")
+            cur.execute(
+                f"DELETE FROM api_keys WHERE license_id IN ({placeholder}, {placeholder}, {placeholder});",
+                legacy_fake_ids
+            )
+
+            # Ensure no legacy simulated/test records falsely claim paid status or fake customers while live billing is disabled
+            if not settings.BILLING_LIVE_ENABLED:
+                cur.execute(
+                    """DELETE FROM api_keys
+                       WHERE name LIKE 'Emirates SkyCargo%'
+                          OR name LIKE 'FedEx Express%'
+                          OR name = 'Rate Limit Test Partner';"""
+                )
+                cur.execute(
+                    """UPDATE billing_orders
+                       SET payment_status = 'SIMULATED_LEGACY'
+                       WHERE payment_status = 'PAID';"""
+                )
+                cur.execute(
+                    """UPDATE api_keys
+                       SET is_paid_enterprise = 0,
+                           subscription_status = 'DEMO_EVALUATION',
+                           monthly_fee_usd = 0,
+                           sla_uptime = 'Evaluation / Best-Effort'
+                       WHERE is_paid_enterprise = 1;"""
+                )
+
+            # Ensure the clearly labelled DEMO evaluation sandbox key exists
+            def hash_key(k: str) -> str:
+                return hashlib.sha256(k.encode("utf-8")).hexdigest()
+
+            demo_hash = hash_key(settings.DEMO_EVALUATION_KEY)
+            cur.execute(f"SELECT COUNT(*) as cnt FROM api_keys WHERE key_hash = {placeholder};", (demo_hash,))
             row = cur.fetchone()
-            count = row["cnt"] if isinstance(row, dict) else row[0]
-            if count == 0:
-                def hash_key(k: str) -> str:
-                    return hashlib.sha256(k.encode("utf-8")).hexdigest()
+            demo_exists = (row["cnt"] if isinstance(row, dict) else row[0]) > 0
 
+            if not demo_exists:
                 now = datetime.datetime.now(datetime.timezone.utc).isoformat()
-                keys_to_seed = [
-                    (
-                        hash_key("sk_live_akanno_sovereign_dxb_001"),
-                        "sk_live_sov_akan...",
-                        "Akanno Tech Labs (Sovereign Defense Master)",
-                        "sovereign_defense",
-                        3000,
-                        1,
-                        1,
-                        "Sovereign Airspace & Defense License",
-                        "LIC-SOV-2026-AKANNO-001",
-                        25000,
-                        "99.999% Dedicated",
-                        now,
-                        now,
-                        0
-                    ),
-                    (
-                        hash_key("sk_live_ek_cargo_dispatch_772"),
-                        "sk_live_glo_ekca...",
-                        "Emirates SkyCargo Dispatch Operations",
-                        "global_cargo_carrier",
-                        500,
-                        1,
-                        1,
-                        "Global Cargo Carrier License",
-                        "LIC-GLO-2026-EK-772",
-                        7500,
-                        "99.99%",
-                        now,
-                        now,
-                        0
-                    ),
-                    (
-                        hash_key("sk_live_fdx_global_route_890"),
-                        "sk_live_reg_fdxg...",
-                        "FedEx Express Gulf Regional Hub",
-                        "regional_hub",
-                        120,
-                        1,
-                        1,
-                        "Regional Hub License",
-                        "LIC-REG-2026-FDX-890",
-                        2500,
-                        "99.9%",
-                        now,
-                        now,
-                        0
-                    )
-                ]
-
-                for item in keys_to_seed:
-                    cur.execute("""
-                        INSERT INTO api_keys 
-                        (key_hash, key_prefix, name, tier, rate_limit_rpm, is_active, is_paid_enterprise, license_type, license_id, monthly_fee_usd, sla_uptime, created_at, last_used_at, total_requests)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-                    """ if not self.is_postgres else """
-                        INSERT INTO api_keys 
-                        (key_hash, key_prefix, name, tier, rate_limit_rpm, is_active, is_paid_enterprise, license_type, license_id, monthly_fee_usd, sla_uptime, created_at, last_used_at, total_requests)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
-                    """, item)
+                cur.execute(f"""
+                    INSERT INTO api_keys
+                    (key_hash, key_prefix, name, tier, rate_limit_rpm, is_active, is_paid_enterprise, license_type, license_id, monthly_fee_usd, sla_uptime, subscription_status, created_at, last_used_at, total_requests)
+                    VALUES ({", ".join([placeholder] * 15)});
+                """, (
+                    demo_hash,
+                    "sk_demo_skygrid_...",
+                    "SkyGrid Evaluation Sandbox (DEMO)",
+                    "demo_evaluation",
+                    120,
+                    1,
+                    0,
+                    "Evaluation Sandbox (Non-Commercial)",
+                    "DEMO-EVAL-2026-001",
+                    0,
+                    "Evaluation / Best-Effort",
+                    "DEMO_EVALUATION",
+                    now,
+                    now,
+                    0
+                ))
 
             # Check webhooks
             cur.execute("SELECT COUNT(*) as cnt FROM webhooks;")

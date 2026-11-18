@@ -40,23 +40,38 @@ class Settings:
     FLIGHT_RISK_THRESHOLD: float = float(os.getenv("FLIGHT_RISK_THRESHOLD", "25.0"))
     WINDSHEAR_THRESHOLD_KTS: float = float(os.getenv("WINDSHEAR_THRESHOLD_KTS", "15.0"))
 
-    # Security & Webhook Signatures
-    WEBHOOK_SIGNING_SECRET: str = os.getenv("WEBHOOK_SIGNING_SECRET", "skygrid_sec_8f99c27940e4ab91")
-    DEFAULT_MASTER_KEY: str = os.getenv("DEFAULT_MASTER_KEY", "sk_live_akanno_sovereign_dxb_001")
+    # Security & Administrative Authorization
+    WEBHOOK_SIGNING_SECRET: str = os.getenv("WEBHOOK_SIGNING_SECRET", "")
+    ADMIN_API_SECRET: str = os.getenv("SKYGRID_ADMIN_SECRET", "")
+    DEMO_EVALUATION_KEY: str = os.getenv("DEMO_EVALUATION_KEY", "sk_demo_skygrid_evaluation_001")
+    DEFAULT_MASTER_KEY: str = os.getenv("DEFAULT_MASTER_KEY", "sk_demo_skygrid_evaluation_001")
 
-    # Payment Gateway & Settlement Configuration (Flutterwave, Paystack, Raenest, Grey)
-    PAYMENT_GATEWAY: str = os.getenv("PAYMENT_GATEWAY", "flutterwave")
-    FLUTTERWAVE_PUBLIC_KEY: str = os.getenv("FLUTTERWAVE_PUBLIC_KEY", "FLWPUBK_TEST-94028371-X")
-    FLUTTERWAVE_SECRET_KEY: str = os.getenv("FLUTTERWAVE_SECRET_KEY", "FLWSECK_TEST-94028371-X")
-    PAYSTACK_PUBLIC_KEY: str = os.getenv("PAYSTACK_PUBLIC_KEY", "pk_test_akanno_sandbox_001")
-    PAYSTACK_SECRET_KEY: str = os.getenv("PAYSTACK_SECRET_KEY", "sk_test_akanno_sandbox_001")
+    # Payment Gateway & Settlement Configuration (Disabled by default until verified merchant onboarding)
+    ENABLE_LIVE_BILLING: bool = os.getenv("ENABLE_LIVE_BILLING", "false").lower() == "true"
+    PAYMENT_GATEWAY: str = os.getenv("PAYMENT_GATEWAY", "paystack")
+    FLUTTERWAVE_PUBLIC_KEY: str = os.getenv("FLUTTERWAVE_PUBLIC_KEY", "")
+    FLUTTERWAVE_SECRET_KEY: str = os.getenv("FLUTTERWAVE_SECRET_KEY", "")
+    FLUTTERWAVE_WEBHOOK_HASH: str = os.getenv("FLUTTERWAVE_WEBHOOK_HASH", "")
+    PAYSTACK_PUBLIC_KEY: str = os.getenv("PAYSTACK_PUBLIC_KEY", "")
+    PAYSTACK_SECRET_KEY: str = os.getenv("PAYSTACK_SECRET_KEY", "")
 
-    # Global B2B Wire Transfer / Invoicing Vault (Raenest / Grey USD Corporate Settlement)
-    RAENEST_BENEFICIARY_NAME: str = os.getenv("RAENEST_BENEFICIARY_NAME", "Akanno Tech Labs Ltd")
-    RAENEST_USD_BANK_NAME: str = os.getenv("RAENEST_USD_BANK_NAME", "Lead Bank / Raenest Corp Banking")
-    RAENEST_USD_ROUTING: str = os.getenv("RAENEST_USD_ROUTING", "101000695")
-    RAENEST_USD_ACCOUNT: str = os.getenv("RAENEST_USD_ACCOUNT", "884920194821")
-    RAENEST_SWIFT_BIC: str = os.getenv("RAENEST_SWIFT_BIC", "LEADUS33XXX")
+    # Corporate Settlement Details (Configured only via verified environment variables — never hardcoded)
+    CORPORATE_BENEFICIARY_NAME: str = os.getenv("CORPORATE_BENEFICIARY_NAME", "Akanno Tech Labs Limited")
+    CORPORATE_BANK_NAME: str = os.getenv("CORPORATE_BANK_NAME", "")
+    CORPORATE_ROUTING_NUMBER: str = os.getenv("CORPORATE_ROUTING_NUMBER", "")
+    CORPORATE_ACCOUNT_NUMBER: str = os.getenv("CORPORATE_ACCOUNT_NUMBER", "")
+    CORPORATE_SWIFT_BIC: str = os.getenv("CORPORATE_SWIFT_BIC", "")
+
+    @property
+    def BILLING_LIVE_ENABLED(self) -> bool:
+        if not self.ENABLE_LIVE_BILLING:
+            return False
+        gw = self.PAYMENT_GATEWAY.lower().strip()
+        if gw == "paystack":
+            return bool(self.PAYSTACK_SECRET_KEY and self.PAYSTACK_PUBLIC_KEY)
+        if gw == "flutterwave":
+            return bool(self.FLUTTERWAVE_SECRET_KEY and self.FLUTTERWAVE_PUBLIC_KEY and self.FLUTTERWAVE_WEBHOOK_HASH)
+        return False
 
 settings = Settings()
 

@@ -5,7 +5,6 @@
  * Strictly Typed Modern TypeScript Implementation
  */
 
-import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { TacticalAudioSystem } from './audio';
 import {
@@ -19,9 +18,7 @@ import {
 } from './types/licensing';
 import {
   AirportHub,
-  CorridorCameraPreset,
-  FlightArcDefinition,
-  LayerToggleState
+  CorridorCameraPreset
 } from './types/radar';
 import {
   LiveSyncResponse,
@@ -36,6 +33,7 @@ import {
   INITIAL_DIRECTIVES as DEFAULT_DIRECTIVES
 } from './data/mockData';
 import { apiClient } from './api/client';
+import { TacticalRadarEngine } from './radar/radarEngine';
 
 export type AppRoute = '/' | '/dashboard';
 
@@ -80,11 +78,7 @@ export function navigateTo(route: string, updateHistory = true): void {
 
     // Resize MapLibre canvas on reveal so viewport calculates proper dimensions
     setTimeout(() => {
-      if (map) {
-        map.resize();
-      } else if (!mapInitialized) {
-        initMapLibreRadar();
-      }
+      radarEngine.resizeIfReady();
     }, 150);
   } else {
     // Switch to Modern Light Aerospace Public Experience
@@ -259,20 +253,52 @@ export function setLandingCurrency(currency: string): void {
 }
 
 /**
- * Transmit Enterprise Partnership Enquiry
+ * Transmit Enterprise Partnership Enquiry (persists to FastAPI /api/v1/enquiries with offline resilience)
  */
-export function submitPartnershipEnquiry(): void {
+export async function submitPartnershipEnquiry(): Promise<void> {
   audio.playDirectiveChime();
   const nameInput = document.getElementById('enquiry-name') as HTMLInputElement | null;
   const orgInput = document.getElementById('enquiry-org') as HTMLInputElement | null;
   const emailInput = document.getElementById('enquiry-email') as HTMLInputElement | null;
+  const interestSelect = document.getElementById('enquiry-interest') as HTMLSelectElement | null;
   const messageInput = document.getElementById('enquiry-message') as HTMLTextAreaElement | null;
   const banner = document.getElementById('enquiry-success-banner');
   const refIdEl = document.getElementById('enquiry-ref-id');
   const btn = document.getElementById('btn-enquiry-submit') as HTMLButtonElement | null;
 
-  const randomRef = `AT-ENQ-2026-${Math.floor(1000 + Math.random() * 9000)}`;
-  if (refIdEl) refIdEl.textContent = randomRef;
+  const fullName = (nameInput?.value ?? '').trim();
+  const organization = (orgInput?.value ?? '').trim();
+  const email = (emailInput?.value ?? '').trim();
+  const interestTier = interestSelect?.value || 'commercial_api';
+  const message = (messageInput?.value ?? '').trim();
+
+  if (!fullName || !organization || !email) {
+    return;
+  }
+
+  let enquiryRef = `ENQ-SKY-${Math.floor(100000 + Math.random() * 899999)}`;
+
+  try {
+    const res = await apiFetch('/api/v1/enquiries', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        full_name: fullName,
+        organization,
+        email,
+        interest_tier: interestTier,
+        message
+      })
+    });
+    if (res.ok) {
+      const data: { enquiry_ref?: string } = await res.json();
+      if (data.enquiry_ref) enquiryRef = data.enquiry_ref;
+    }
+  } catch {
+    // Graceful local confirmation when backend is waking or offline
+  }
+
+  if (refIdEl) refIdEl.textContent = enquiryRef;
 
   if (banner) {
     banner.classList.remove('hidden');
@@ -280,7 +306,7 @@ export function submitPartnershipEnquiry(): void {
   }
 
   if (btn) {
-    btn.innerHTML = '<span>✓ ENQUIRY TRANSMITTED</span>';
+    btn.innerHTML = '<span>✓ ENQUIRY RECEIVED BY AKANNO TECH LABS</span>';
     btn.classList.add('opacity-75');
   }
 
@@ -296,7 +322,11 @@ DEFAULT_AIR_CORRIDORS.forEach((c: CorridorMetric) => {
   CORRIDOR_MAP[c.id] = c;
 });
 
-let FLIGHTS_DATA: FlightVector[] = [...INITIAL_FLIGHTS];
+let FLIGHTS_DATA: FlightVector[] = INITIAL_FLIGHTS.map((f) => ({
+  ...f,
+  isSimulated: true,
+  vectorHistory: f.vectorHistory.map((pt) => [pt[0], pt[1]] as [number, number])
+}));
 let DIRECTIVES_LOG: TacticalDirective[] = [...DEFAULT_DIRECTIVES];
 
 // Tactical Web Audio Synthesizer
@@ -306,9 +336,7 @@ const audio = new TacticalAudioSystem();
 let activeCorridorKey: string = 'dxb-primary';
 let currentFilter: string = 'all';
 let selectedFlight: FlightVector | null = null;
-const layersState: LayerToggleState = { vectors: true, sweep: true };
-let radarViewMode: '3d' | '2d' = '3d';
-const activeApiKey: string = 'sk_live_akanno_sovereign_dxb_001';
+const activeApiKey: string = 'sk_demo_skygrid_evaluation_001';
 
 // Strategic Geographic Airport Hub Coordinates
 const AIRPORT_HUBS: AirportHub[] = [
@@ -364,610 +392,53 @@ const CORRIDOR_CAMERA_TARGETS: Record<string, CorridorCameraPreset> = {
   }
 };
 
-// High-Fidelity Keyless Vector Basemap (OpenFreeMap Dark - Zero API Key, Zero Watermarks)
-const TACTICAL_DARK_BASEMAP_STYLE = 'https://tiles.openfreemap.org/styles/dark';
+// Modular Air-Traffic Surveillance MapLibre GL Radar Engine
+const radarEngine = new TacticalRadarEngine({
+  getFlights: () => FLIGHTS_DATA,
+  airportHubs: AIRPORT_HUBS,
+  corridorCameraTargets: CORRIDOR_CAMERA_TARGETS,
+  onOpenFlightModal: (flightId: string) => openFlightModal(flightId),
+  onPlayClick: () => audio.playClick()
+});
 
-// Keyless High-Performance Dark Raster Fallback (Esri World Dark Gray Canvas)
-const TACTICAL_DARK_RASTER_FALLBACK: maplibregl.StyleSpecification = {
-  version: 8,
-  sources: {
-    'esri-dark': {
-      type: 'raster',
-      tiles: [
-        'https://services.arcgisonline.com/arcgis/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
-        'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}'
-      ],
-      tileSize: 256,
-      attribution: 'Esri, DeLorme, NAVTEQ'
-    }
-  },
-  layers: [
-    {
-      id: 'esri-dark-tiles',
-      type: 'raster',
-      source: 'esri-dark',
-      minzoom: 0,
-      maxzoom: 16
-    }
-  ]
-};
-
-// Hardware WebGL Capabilities Detector
-function isWebGLSupported(): boolean {
-  try {
-    const canvas = document.createElement('canvas');
-    return !!(window.WebGLRenderingContext && (canvas.getContext('webgl') || canvas.getContext('experimental-webgl')));
-  } catch {
-    return false;
-  }
-}
-
-// MapLibre GL Instances & Lifecycle Tracking
-let map: maplibregl.Map | null = null;
-let mapInitialized: boolean = false;
-let mapInitializing: boolean = false;
-let mapContainerObserver: ResizeObserver | null = null;
-let radarResizeObserver: ResizeObserver | null = null;
-const aircraftMarkers: Record<string, { marker: maplibregl.Marker; el: HTMLElement; flight: FlightVector }> = {};
-let hubMarkers: maplibregl.Marker[] = [];
-let movementInterval: ReturnType<typeof setInterval> | null = null;
-let azimuthInterval: ReturnType<typeof setInterval> | null = null;
-let currentSweepAzimuth: number = 184;
-
-// Teardown and Reset Tactical Radar Engine
-export function cleanupRadar(): void {
-  if (movementInterval) {
-    clearInterval(movementInterval);
-    movementInterval = null;
-  }
-  if (azimuthInterval) {
-    clearInterval(azimuthInterval);
-    azimuthInterval = null;
-  }
-  Object.keys(aircraftMarkers).forEach((id) => {
-    try {
-      const entry = aircraftMarkers[id];
-      if (entry) {
-        entry.marker.remove();
-      }
-    } catch {}
-    delete aircraftMarkers[id];
-  });
-  hubMarkers.forEach((m) => {
-    try {
-      m.remove();
-    } catch {}
-  });
-  hubMarkers = [];
-  if (radarResizeObserver) {
-    radarResizeObserver.disconnect();
-    radarResizeObserver = null;
-  }
-  if (mapContainerObserver) {
-    mapContainerObserver.disconnect();
-    mapContainerObserver = null;
-  }
-  if (map) {
-    try {
-      map.remove();
-    } catch (e) {
-      console.warn('[RADAR ENGINE CLEANUP]', e);
-    }
-    map = null;
-  }
-  mapInitialized = false;
-  mapInitializing = false;
-}
-
-// Force Reinitialization of Tactical Radar Engine
-export function reinitRadar(): void {
-  const fallbackEl = document.getElementById('radar-webgl-fallback');
-  if (fallbackEl) fallbackEl.classList.add('hidden');
-  cleanupRadar();
-  initMapLibreRadar();
-}
-
-// Precise geodesic circle generator for tactical range rings
-function createRangeRingCoordinates(center: [number, number], radiusKm: number, points: number = 64): [number, number][] {
-  const coords: [number, number][] = [];
-  const kmPerLng = 111.320 * Math.cos((center[1] * Math.PI) / 180);
-  const kmPerLat = 110.574;
-  for (let i = 0; i <= points; i++) {
-    const angle = (i / points) * (2 * Math.PI);
-    const lng = center[0] + (radiusKm * Math.cos(angle)) / kmPerLng;
-    const lat = center[1] + (radiusKm * Math.sin(angle)) / kmPerLat;
-    coords.push([lng, lat]);
-  }
-  return coords;
-}
-
-// Curved Bezier arc between two geographic hubs
-function generateCurvedArc(start: [number, number], end: [number, number], numPoints: number = 40): [number, number][] {
-  const points: [number, number][] = [];
-  const midLng = (start[0] + end[0]) / 2;
-  const isLongRange = Math.abs(start[0] - end[0]) > 25;
-  const arcDeflection = isLongRange ? 4.8 : 0.85;
-  const midLat = (start[1] + end[1]) / 2 + arcDeflection;
-
-  for (let i = 0; i <= numPoints; i++) {
-    const t = i / numPoints;
-    const lng = (1 - t) * (1 - t) * start[0] + 2 * (1 - t) * t * midLng + t * t * end[0];
-    const lat = (1 - t) * (1 - t) * start[1] + 2 * (1 - t) * t * midLat + t * t * end[1];
-    points.push([lng, lat]);
-  }
-  return points;
-}
-
-// Initialize MapLibre GL Vector Radar
 export function initMapLibreRadar(): void {
-  if (map) {
-    map.resize();
-    return;
-  }
-  if (mapInitializing) return;
-
-  const container = document.getElementById('tactical-map-container') || document.getElementById('radar-canvas-container');
-  if (!container) return;
-
-  const fallbackEl = document.getElementById('radar-webgl-fallback');
-
-  if (!isWebGLSupported()) {
-    if (fallbackEl) fallbackEl.classList.remove('hidden');
-    console.warn('[RADAR ENGINE] Hardware WebGL context not available');
-    return;
-  }
-
-  // Prevent zero-dimension initialization crashes when dashboard is hidden
-  if (container.clientWidth === 0 || container.clientHeight === 0) {
-    if (!mapContainerObserver) {
-      mapContainerObserver = new ResizeObserver((entries) => {
-        for (const entry of entries) {
-          if (entry.contentRect.width > 0 && entry.contentRect.height > 0) {
-            mapContainerObserver?.disconnect();
-            mapContainerObserver = null;
-            initMapLibreRadar();
-            break;
-          }
-        }
-      });
-      mapContainerObserver.observe(container);
-    }
-    return;
-  }
-
-  mapInitializing = true;
-
-  try {
-    map = new maplibregl.Map({
-      container: container,
-      style: TACTICAL_DARK_BASEMAP_STYLE,
-      center: [55.3657, 25.2532], // Centered on OMDB / DXB
-      zoom: 9.0,
-      pitch: 45, // Tilted 3D pitch
-      bearing: -20,
-      attributionControl: false
-    });
-
-    map.on('move', () => {
-      if (!map) return;
-      const pitchEl = document.getElementById('radar-pitch-display');
-      const bearingEl = document.getElementById('radar-bearing-display');
-      const zoomEl = document.getElementById('radar-zoom-level');
-      if (pitchEl) pitchEl.textContent = `${Math.round(map.getPitch())}°`;
-      if (bearingEl) bearingEl.textContent = `${Math.round(map.getBearing())}°`;
-      if (zoomEl) zoomEl.textContent = `${Math.round(map.getZoom() * 11)}%`;
-    });
-
-    map.on('load', () => {
-      mapInitialized = true;
-      mapInitializing = false;
-      if (fallbackEl) fallbackEl.classList.add('hidden');
-
-      addRangeRingsLayers();
-      addFlightPathArcLayers();
-      renderHubBeaconMarkers();
-      renderMovingAircraftMarkers();
-      startAircraftMovementLoop();
-      startAzimuthSweepSimulation();
-
-      // Ensure proper canvas dimensioning
-      setTimeout(() => {
-        map?.resize();
-      }, 60);
-
-      // Attach resize observer to handle layout / view shifts
-      if (!radarResizeObserver && container) {
-        radarResizeObserver = new ResizeObserver(() => {
-          if (map) {
-            map.resize();
-          }
-        });
-        radarResizeObserver.observe(container);
-      }
-    });
-
-    map.on('error', (e: unknown) => {
-      console.warn('[MAPLIBRE WARNING]', e);
-      if (!mapInitialized && map) {
-        try {
-          map.setStyle(TACTICAL_DARK_RASTER_FALLBACK);
-        } catch {}
-      }
-    });
-
-  } catch (err) {
-    mapInitializing = false;
-    console.error('[MAPLIBRE INIT ERROR]', err);
-    if (fallbackEl) fallbackEl.classList.remove('hidden');
-  }
+  radarEngine.init();
 }
 
-// Add Range Rings GeoJSON Layers (25NM, 50NM, 100NM centered on DXB)
-function addRangeRingsLayers(): void {
-  if (!map) return;
-  const dxbCenter: [number, number] = [55.3657, 25.2532];
-  const ring25 = createRangeRingCoordinates(dxbCenter, 46.3);
-  const ring50 = createRangeRingCoordinates(dxbCenter, 92.6);
-  const ring100 = createRangeRingCoordinates(dxbCenter, 185.2);
-
-  const rangeRingsGeoJSON = {
-    type: 'FeatureCollection' as const,
-    features: [
-      {
-        type: 'Feature' as const,
-        properties: { name: '25 NM RING', color: '#22d3ee', opacity: 0.65, width: 1.5 },
-        geometry: { type: 'LineString' as const, coordinates: ring25 }
-      },
-      {
-        type: 'Feature' as const,
-        properties: { name: '50 NM RING', color: '#06b6d4', opacity: 0.5, width: 1.2 },
-        geometry: { type: 'LineString' as const, coordinates: ring50 }
-      },
-      {
-        type: 'Feature' as const,
-        properties: { name: '100 NM RING', color: '#0e7490', opacity: 0.4, width: 1.0 },
-        geometry: { type: 'LineString' as const, coordinates: ring100 }
-      }
-    ]
-  };
-
-  if (!map.getSource('dxb-range-rings')) {
-    map.addSource('dxb-range-rings', {
-      type: 'geojson',
-      data: rangeRingsGeoJSON
-    });
-
-    map.addLayer({
-      id: 'dxb-range-rings-line',
-      type: 'line',
-      source: 'dxb-range-rings',
-      paint: {
-        'line-color': ['get', 'color'],
-        'line-width': ['get', 'width'],
-        'line-dasharray': [2, 2],
-        'line-opacity': ['get', 'opacity']
-      }
-    });
-  }
+export function cleanupRadar(): void {
+  radarEngine.cleanup();
 }
 
-// Add Animated GeoJSON Flight Path Arcs connecting Origin & Destination Hubs
-function addFlightPathArcLayers(): void {
-  if (!map) return;
-  const hubCoords: Record<string, [number, number]> = {};
-  AIRPORT_HUBS.forEach((h) => {
-    const key = h.code.split('/')[1]?.trim() ?? h.code.split('/')[0]?.trim() ?? h.code;
-    hubCoords[key] = h.coords;
-  });
-
-  const corridorConnections: FlightArcDefinition[] = [
-    { from: 'FRA', to: 'DXB', color: '#22d3ee', callsign: 'EK-902' },
-    { from: 'ORD', to: 'DXB', color: '#22d3ee', callsign: 'ATLAS-81' },
-    { from: 'LEJ', to: 'DWC', color: '#10b981', callsign: 'DHL-109' },
-    { from: 'SIN', to: 'DXB', color: '#22d3ee', callsign: 'SQ-77' },
-    { from: 'DOH', to: 'DXB', color: '#10b981', callsign: 'QTR-994' },
-    { from: 'HKG', to: 'DWC', color: '#f59e0b', callsign: 'CPA-63' },
-    { from: 'SYD', to: 'DXB', color: '#10b981', callsign: 'UAE-9902' },
-    { from: 'LUX', to: 'DXB', color: '#ef4444', callsign: 'CLX-714' },
-    { from: 'LHR', to: 'DXB', color: '#22d3ee', callsign: 'BAW-208' },
-  ];
-
-  const arcFeatures: Array<{
-    type: 'Feature';
-    properties: { from: string; to: string; color: string; callsign: string };
-    geometry: { type: 'LineString'; coordinates: [number, number][] };
-  }> = [];
-
-  corridorConnections.forEach((conn) => {
-    const fromCoord = hubCoords[conn.from];
-    const toCoord = hubCoords[conn.to];
-    if (fromCoord && toCoord) {
-      const arcPoints = generateCurvedArc(fromCoord, toCoord);
-      arcFeatures.push({
-        type: 'Feature',
-        properties: {
-          from: conn.from,
-          to: conn.to,
-          color: conn.color,
-          callsign: conn.callsign
-        },
-        geometry: {
-          type: 'LineString',
-          coordinates: arcPoints
-        }
-      });
-    }
-  });
-
-  if (!map.getSource('flight-arcs')) {
-    map.addSource('flight-arcs', {
-      type: 'geojson',
-      data: {
-        type: 'FeatureCollection',
-        features: arcFeatures
-      }
-    });
-
-    map.addLayer({
-      id: 'flight-arcs-glow',
-      type: 'line',
-      source: 'flight-arcs',
-      paint: {
-        'line-color': ['get', 'color'],
-        'line-width': 3.5,
-        'line-opacity': 0.35,
-        'line-blur': 2.5
-      }
-    });
-
-    map.addLayer({
-      id: 'flight-arcs-core',
-      type: 'line',
-      source: 'flight-arcs',
-      paint: {
-        'line-color': ['get', 'color'],
-        'line-width': 1.6,
-        'line-opacity': 0.8,
-        'line-dasharray': [3, 2]
-      }
-    });
-  }
+export function reinitRadar(): void {
+  radarEngine.reinit();
 }
 
-// Render Glowing Cyan / Emerald Airport Beacons (OMDB, OMDW, OTHH, EGLL, WSSS, etc.)
-function renderHubBeaconMarkers(): void {
-  if (!map) return;
-  hubMarkers.forEach((m) => m.remove());
-  hubMarkers = [];
-
-  AIRPORT_HUBS.forEach((hub) => {
-    const el = document.createElement('div');
-    el.className = 'tactical-hub-beacon';
-    const shortLabel = hub.code.split('/')[1]?.trim() ?? hub.code;
-    el.innerHTML = `
-      <div class="hub-beacon-pulse ${hub.isPrimary ? 'primary' : ''}"></div>
-      <div class="hub-beacon-core ${hub.isPrimary ? 'primary' : ''}"></div>
-      <div class="hub-beacon-label ${hub.isPrimary ? 'primary' : ''}">${shortLabel}</div>
-    `;
-
-    const popupHtml = `
-      <div class="font-mono text-xs">
-        <div class="flex items-center justify-between border-b border-cyan-500/30 pb-1 mb-1.5">
-          <span class="text-cyan-300 font-extrabold">${hub.code}</span>
-          <span class="text-[9px] px-1.5 py-0.2 rounded ${hub.isPrimary ? 'bg-emerald-950 text-emerald-300 border border-emerald-600' : 'bg-slate-800 text-slate-300'} font-bold">
-            ${hub.isPrimary ? 'STRATEGIC HUB' : 'EXTERNAL NODE'}
-          </span>
-        </div>
-        <div class="text-white font-bold">${hub.name}</div>
-        <div class="text-slate-400 text-[11px]">${hub.city}</div>
-        <div class="text-cyan-400 text-[10px] mt-1">${hub.role}</div>
-        <div class="text-slate-500 text-[9px] mt-1">POS: ${hub.coords[1].toFixed(4)}°N, ${hub.coords[0].toFixed(4)}°E</div>
-      </div>
-    `;
-
-    const popup = new maplibregl.Popup({ offset: 15, closeButton: true, maxWidth: '280px' })
-      .setHTML(popupHtml);
-
-    const marker = new maplibregl.Marker({ element: el })
-      .setLngLat(hub.coords)
-      .setPopup(popup)
-      .addTo(map!);
-
-    hubMarkers.push(marker);
-  });
-}
-
-// Render Moving Aircraft Markers with Clickable Popups
-function renderMovingAircraftMarkers(): void {
-  if (!map) return;
-
-  FLIGHTS_DATA.forEach((flight) => {
-    let colorHex = '#10b981';
-    let riskPillClass = 'bg-emerald-950 text-emerald-400 border border-emerald-600';
-    if (flight.riskCategory === 'watch') {
-      colorHex = '#22d3ee';
-      riskPillClass = 'bg-cyan-950 text-cyan-300 border border-cyan-600';
-    } else if (flight.riskCategory === 'elevated') {
-      colorHex = '#f59e0b';
-      riskPillClass = 'bg-amber-950 text-amber-300 border border-amber-600';
-    } else if (flight.riskCategory === 'critical') {
-      colorHex = '#ef4444';
-      riskPillClass = 'bg-red-950 text-red-400 border border-red-600';
-    }
-
-    const existing = aircraftMarkers[flight.id];
-    if (existing) {
-      existing.marker.setLngLat([flight.lng, flight.lat]);
-      const iconBox = existing.el.querySelector('.plane-icon-box') as HTMLElement | null;
-      if (iconBox) {
-        iconBox.style.transform = `rotate(${flight.heading}deg)`;
-      }
-      return;
-    }
-
-    const el = document.createElement('div');
-    el.className = 'tactical-plane-marker';
-    el.innerHTML = `
-      <div class="plane-icon-box" style="transform: rotate(${flight.heading}deg);">
-        <svg class="plane-icon-svg" viewBox="0 0 24 24" fill="${colorHex}">
-          <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/>
-        </svg>
-      </div>
-      <div class="plane-tag">
-        <span class="font-bold text-white">${flight.callsign}</span>
-        <span class="cri-pill ${riskPillClass}">${Number(flight.riskScore).toFixed(1)}%</span>
-      </div>
-    `;
-
-    const popupHtml = `
-      <div class="font-mono text-xs">
-        <div class="flex items-center justify-between border-b border-cyan-500/30 pb-1 mb-2">
-          <span class="text-white font-extrabold text-sm">${flight.callsign}</span>
-          <span class="px-1.5 py-0.2 rounded text-[10px] font-bold ${riskPillClass}">
-            CRI: ${Number(flight.riskScore).toFixed(1)}%
-          </span>
-        </div>
-        <div class="text-cyan-300 font-semibold text-[11px]">${flight.aircraft} • ${flight.carrier}</div>
-        <div class="grid grid-cols-2 gap-1.5 my-2 text-[11px] bg-obsidian-950 p-2 rounded border border-slate-800">
-          <div><span class="text-slate-400">ROUTE:</span> <span class="text-white font-bold">${flight.origin} → ${flight.destination}</span></div>
-          <div><span class="text-slate-400">ALTITUDE:</span> <span class="text-cyan-300 font-bold">${flight.flightLevel}</span></div>
-          <div><span class="text-slate-400">SPEED:</span> <span class="text-white font-bold">${flight.speed} kts</span></div>
-          <div><span class="text-slate-400">HEADING:</span> <span class="text-white font-bold">${flight.heading}°</span></div>
-        </div>
-        <div class="text-[10px] text-slate-300 mb-2 truncate">PAYLOAD: ${flight.cargoPayload}</div>
-        <button onclick="window.openFlightModal('${flight.id}')" class="w-full py-1 bg-cyan-950 hover:bg-cyan-900 border border-cyan-500/50 text-cyan-300 font-bold rounded text-[11px] transition-colors">
-          INSPECT TACTICAL DOSSIER
-        </button>
-      </div>
-    `;
-
-    const popup = new maplibregl.Popup({ offset: 20, closeButton: true, maxWidth: '300px' })
-      .setHTML(popupHtml);
-
-    const marker = new maplibregl.Marker({ element: el })
-      .setLngLat([flight.lng, flight.lat])
-      .setPopup(popup)
-      .addTo(map!);
-
-    aircraftMarkers[flight.id] = { marker, el, flight };
-  });
-}
-
-// Smooth Continuous Movement Loop for Active Vectors
-function startAircraftMovementLoop(): void {
-  if (movementInterval) clearInterval(movementInterval);
-  movementInterval = setInterval(() => {
-    FLIGHTS_DATA.forEach((flight) => {
-      const rad = (flight.heading * Math.PI) / 180;
-      const speedFactor = 0.00035 * (flight.speed / 450);
-      flight.lng += Math.sin(rad) * speedFactor;
-      flight.lat += Math.cos(rad) * speedFactor;
-
-      // Wrap vectors smoothly around Dubai terminal airspace
-      if (flight.lng > 56.6) flight.lng = 54.7;
-      if (flight.lng < 54.2) flight.lng = 55.9;
-      if (flight.lat > 26.1) flight.lat = 24.7;
-      if (flight.lat < 24.6) flight.lat = 25.6;
-
-      const markerObj = aircraftMarkers[flight.id];
-      if (markerObj) {
-        markerObj.marker.setLngLat([flight.lng, flight.lat]);
-      }
-    });
-  }, 1200);
-}
-
-// Tactical Azimuth Sweep Compass Simulator
-function startAzimuthSweepSimulation(): void {
-  if (azimuthInterval) {
-    clearInterval(azimuthInterval);
-    azimuthInterval = null;
-  }
-  azimuthInterval = setInterval(() => {
-    currentSweepAzimuth = (currentSweepAzimuth + 2) % 360;
-    const azEl = document.getElementById('radar-azimuth');
-    if (azEl) {
-      azEl.textContent = `${currentSweepAzimuth}°`;
-    }
-  }, 100);
-}
-
-// Camera Controls: Recenter, 3D Pitch / 2D Plan Scope, Zoom
 export function recenterRadar(playSound: boolean = true): void {
-  if (playSound) audio.playClick();
-  if (map) {
-    map.flyTo({
-      center: [55.3657, 25.2532],
-      zoom: 9.0,
-      pitch: radarViewMode === '3d' ? 45 : 0,
-      bearing: radarViewMode === '3d' ? -20 : 0,
-      duration: 1800
-    });
-  }
+  radarEngine.recenter(playSound);
 }
 
 export function zoomRadar(factor: number): void {
-  audio.playClick();
-  if (map) {
-    if (factor > 1) {
-      map.zoomIn();
-    } else {
-      map.zoomOut();
-    }
-  }
+  radarEngine.zoom(factor);
 }
 
 export function setRadarViewMode(mode: '3d' | '2d'): void {
-  audio.playClick();
-  radarViewMode = mode;
-  const btn3D = document.getElementById('btn-mode-3d');
-  const btn2D = document.getElementById('btn-mode-2d');
-
-  if (mode === '3d') {
-    if (btn3D) btn3D.className = 'px-2.5 py-1 text-[11px] rounded bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/40 shadow-sm transition-all';
-    if (btn2D) btn2D.className = 'px-2.5 py-1 text-[11px] rounded text-slate-400 hover:text-white transition-all';
-    if (map) {
-      map.easeTo({ pitch: 45, bearing: -20, duration: 1200 });
-    }
-  } else {
-    if (btn2D) btn2D.className = 'px-2.5 py-1 text-[11px] rounded bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/40 shadow-sm transition-all';
-    if (btn3D) btn3D.className = 'px-2.5 py-1 text-[11px] rounded text-slate-400 hover:text-white transition-all';
-    if (map) {
-      map.easeTo({ pitch: 0, bearing: 0, duration: 1200 });
-    }
-  }
+  radarEngine.setViewMode(mode);
 }
 
-export function toggleLayer(layer: 'vectors' | 'sweep'): void {
-  audio.playClick();
-  layersState[layer] = !layersState[layer];
-  const btn = document.getElementById(`btn-toggle-${layer}`);
-
-  if (layer === 'vectors') {
-    Object.values(aircraftMarkers).forEach((m) => {
-      m.el.style.display = layersState.vectors ? 'flex' : 'none';
-    });
-  }
-  if (layer === 'sweep' && map) {
-    if (map.getLayer('dxb-range-rings-line')) {
-      map.setLayoutProperty('dxb-range-rings-line', 'visibility', layersState.sweep ? 'visible' : 'none');
-    }
-  }
-
-  if (btn) {
-    if (layersState[layer]) {
-      btn.className = 'px-2 py-1 text-[11px] rounded bg-obsidian-850 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-950 font-bold';
-    } else {
-      btn.className = 'px-2 py-1 text-[11px] rounded bg-obsidian-850 border border-slate-800 text-slate-500 hover:text-slate-300';
-    }
-  }
+export function toggleLayer(layer: 'vectors' | 'trails' | 'sweep'): void {
+  radarEngine.toggleLayer(layer);
 }
 
-// Fallback compatibility
+export function selectRadarAircraft(flightId: string): void {
+  radarEngine.selectAircraft(flightId);
+}
+
+export function closeSelectedAircraftPanel(): void {
+  radarEngine.closeSelectedAircraftPanel();
+}
+
 export function createFlightArcsAndVectors(): void {
-  if (mapInitialized) {
-    renderMovingAircraftMarkers();
-  }
+  radarEngine.syncFlights();
 }
 
 // ==================== LIVE BACKEND SYNCHRONIZATION ====================
@@ -1036,15 +507,44 @@ export async function fetchLiveBackendTelemetry(): Promise<void> {
     console.warn('[SKYGRID LIVE PULL ERROR]', e);
   }
 
-  // Fetch Live Flights Telemetry
+  // Fetch Flights Telemetry (preserving smooth local simulation trajectories without snap-back jitter)
   try {
     const flightRes = await apiFetch('/api/v1/telemetry/flights', {
       headers: { 'x-api-key': activeApiKey }
     });
     if (flightRes.ok) {
-      const flightData: { count: number; flights: FlightVector[] } = await flightRes.json();
+      const flightData: { count: number; flights: FlightVector[]; is_simulation_mode?: boolean } = await flightRes.json();
       if (flightData.flights && flightData.flights.length > 0) {
-        FLIGHTS_DATA = flightData.flights;
+        const isSimMode = flightData.is_simulation_mode !== false;
+        if (isSimMode) {
+          // Merge risk/status updates while keeping smooth client-interpolated positions & track histories
+          const existingMap = new Map(FLIGHTS_DATA.map((f) => [f.id, f]));
+          FLIGHTS_DATA = flightData.flights.map((incoming) => {
+            const current = existingMap.get(incoming.id);
+            if (current) {
+              return {
+                ...incoming,
+                lat: current.lat,
+                lng: current.lng,
+                altitude: current.altitude,
+                flightLevel: current.flightLevel,
+                heading: current.heading,
+                vectorHistory:
+                  current.vectorHistory && current.vectorHistory.length > 0
+                    ? current.vectorHistory
+                    : incoming.vectorHistory || [[incoming.lat, incoming.lng]],
+                isSimulated: true
+              };
+            }
+            return {
+              ...incoming,
+              isSimulated: true,
+              vectorHistory: incoming.vectorHistory || [[incoming.lat, incoming.lng]]
+            };
+          });
+        } else {
+          FLIGHTS_DATA = flightData.flights;
+        }
         renderFlightFeed();
         createFlightArcsAndVectors();
       }
@@ -1141,11 +641,7 @@ export function handleCorridorChange(corridorKey: string): void {
   audio.playClick();
   activeCorridorKey = corridorKey;
   fetchLiveBackendTelemetry();
-
-  const preset = CORRIDOR_CAMERA_TARGETS[corridorKey];
-  if (map && preset) {
-    map.flyTo(preset);
-  }
+  radarEngine.flyToCorridor(corridorKey);
 }
 
 export function toggleAudioFeedback(): void {
@@ -1289,20 +785,7 @@ export function focusOnFlightInRadar(): void {
   if (!selectedFlight) return;
   audio.playClick();
   closeFlightModal();
-
-  if (map) {
-    map.flyTo({
-      center: [selectedFlight.lng, selectedFlight.lat],
-      zoom: 11.2,
-      pitch: 50,
-      bearing: selectedFlight.heading ? (selectedFlight.heading - 45) : -20,
-      duration: 1800
-    });
-    const markerObj = aircraftMarkers[selectedFlight.id];
-    if (markerObj?.marker) {
-      markerObj.marker.togglePopup();
-    }
-  }
+  radarEngine.flyToFlight(selectedFlight);
 }
 
 export function openDirectivesModal(): void {
@@ -1488,11 +971,9 @@ export function closeEnterprisePortal(): void {
   audio.playClick();
   const modal = document.getElementById('enterprise-portal-modal');
   modal?.classList.add('hidden');
-  if (map) {
-    setTimeout(() => {
-      map?.resize();
-    }, 100);
-  }
+  setTimeout(() => {
+    radarEngine.resizeIfReady();
+  }, 100);
 }
 
 export function viewLicensingPlans(): void {
@@ -1573,39 +1054,65 @@ export async function loadApiKeys(): Promise<void> {
   try {
     const res = await apiFetch('/api/v1/auth/keys');
     if (res.ok) {
-      const data: { count: number; keys: ApiKeyRecord[] } = await res.json();
+      const data: {
+        count: number;
+        environment_mode?: string;
+        live_payments_enabled?: boolean;
+        keys: ApiKeyRecord[];
+      } = await res.json();
+
+      const envBadge = document.getElementById('portal-env-badge');
+      const billingBadge = document.getElementById('portal-billing-badge');
+      const subStatus = document.getElementById('portal-sub-status');
+      const liveEnabled = Boolean(data.live_payments_enabled);
+
+      if (envBadge) {
+        envBadge.textContent = liveEnabled ? 'PRODUCTION ENVIRONMENT' : 'DEMO / EVALUATION ENVIRONMENT';
+      }
+      if (billingBadge) {
+        billingBadge.textContent = liveEnabled ? 'LIVE BILLING: ACTIVE' : 'LIVE BILLING: NOT ACTIVE';
+      }
+      if (subStatus) {
+        const hasVerifiedPaid = (data.keys || []).some((k) => Boolean(k.is_active) && Boolean(k.is_paid_enterprise));
+        subStatus.textContent = hasVerifiedPaid ? 'Verified Active Subscription' : 'Evaluation Only (Unpaid)';
+      }
+
       const tbody = document.getElementById('api-keys-table-body');
       if (tbody && data.keys) {
-        tbody.innerHTML = data.keys.map((k) => `
-          <tr class="hover:bg-obsidian-900/60 transition-colors">
-            <td class="p-2.5 font-bold text-cyan-400 font-mono">${k.key_prefix}</td>
-            <td class="p-2.5 text-white font-semibold">${k.name}</td>
-            <td class="p-2.5 text-slate-300 font-mono text-[11px]">${k.license_id || 'LIC-STD-2026'}</td>
-            <td class="p-2.5">
-              <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase font-mono ${
-                k.tier === 'sovereign_defense' || (k.license_type && k.license_type.includes('Sovereign'))
-                  ? 'bg-purple-950 text-purple-300 border border-purple-600'
-                  : (k.tier === 'global_cargo_carrier' || (k.license_type && k.license_type.includes('Global'))
-                    ? 'bg-cyan-950 text-cyan-300 border border-cyan-600'
-                    : 'bg-emerald-950 text-emerald-400 border border-emerald-600')
-              }">
-                ${k.license_type || k.tier || 'Regional Hub'}
-              </span>
-            </td>
-            <td class="p-2.5 text-slate-300 font-mono text-[11px]">
-              ${k.monthly_fee_usd ? `$${Number(k.monthly_fee_usd).toLocaleString()}/mo` : 'Annual'} • <span class="text-emerald-400 font-bold">${k.sla_uptime || '99.9%'}</span>
-            </td>
-            <td class="p-2.5 text-white font-mono">${k.total_requests || 0} req (${k.rate_limit_rpm || 120} rpm)</td>
-            <td class="p-2.5">
-              ${k.is_active && k.is_paid_enterprise
-                ? '<span class="text-emerald-400 font-bold text-[10px] font-mono">● PAID ENTERPRISE</span>'
-                : (k.is_active ? '<span class="text-cyan-400 font-bold text-[10px] font-mono">● ACTIVE</span>' : '<span class="text-slate-500 font-mono text-[10px]">REVOKED</span>')}
-            </td>
-            <td class="p-2.5 text-right">
-              ${k.is_active ? `<button onclick="window.revokeApiKey(${k.id})" class="text-red-400 hover:text-red-300 text-[11px] underline font-mono">Revoke</button>` : '<span class="text-slate-600">—</span>'}
-            </td>
-          </tr>
-        `).join('');
+        if (data.keys.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-slate-500 text-xs">No access keys registered.</td></tr>';
+        } else {
+          tbody.innerHTML = data.keys.map((k) => {
+            const isActive = Boolean(k.is_active);
+            const isPaid = Boolean(k.is_paid_enterprise);
+            const statusHtml = !isActive
+              ? '<span class="text-slate-500 font-mono text-[10px]">REVOKED</span>'
+              : isPaid
+                ? '<span class="text-emerald-400 font-bold text-[10px] font-mono">● VERIFIED PAID</span>'
+                : '<span class="text-amber-300 font-bold text-[10px] font-mono">● DEMO / EVALUATION</span>';
+            const tierBadgeClass = isPaid
+              ? 'bg-cyan-950 text-cyan-300 border border-cyan-600'
+              : 'bg-amber-950/70 text-amber-300 border border-amber-600/70';
+
+            return `
+              <tr class="hover:bg-obsidian-900/60 transition-colors">
+                <td class="p-2.5 font-bold text-cyan-400 font-mono">${k.key_prefix}</td>
+                <td class="p-2.5 text-white font-semibold">${k.name}</td>
+                <td class="p-2.5 text-slate-300 font-mono text-[11px]">${k.license_id || 'DEMO-EVAL-2026'}</td>
+                <td class="p-2.5">
+                  <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase font-mono ${tierBadgeClass}">
+                    ${k.license_type || k.tier || 'Evaluation Sandbox'}
+                  </span>
+                </td>
+                <td class="p-2.5 text-white font-mono">${k.total_requests || 0} req (${k.rate_limit_rpm || 120} rpm)</td>
+                <td class="p-2.5">${statusHtml}</td>
+                <td class="p-2.5 text-right text-[10px] text-slate-400 font-mono">
+                  ${isPaid ? 'Server-Verified' : 'Sandbox Read-Only'}
+                </td>
+              </tr>
+            `;
+          }).join('');
+        }
       }
     }
   } catch (e) {
@@ -1734,7 +1241,7 @@ export async function testApiEndpoint(path: string, method: string = 'GET', body
     const duration = Math.round(endTime - startTime);
 
     if (latencyEl) {
-      latencyEl.textContent = `Status: ${res.status} | Latency: ${duration} ms | Tier: Sovereign`;
+      latencyEl.textContent = `Status: ${res.status} | Latency: ${duration} ms | Mode: Evaluation Sandbox`;
     }
 
     const json = await res.json();
@@ -2013,6 +1520,8 @@ window.handleCorridorChange = handleCorridorChange;
 window.toggleAudioFeedback = toggleAudioFeedback;
 window.setRadarViewMode = setRadarViewMode;
 window.toggleLayer = toggleLayer;
+window.selectRadarAircraft = selectRadarAircraft;
+window.closeSelectedAircraftPanel = closeSelectedAircraftPanel;
 window.recenterRadar = recenterRadar;
 window.zoomRadar = zoomRadar;
 window.setFlightFilter = setFlightFilter;
@@ -2098,8 +1607,9 @@ function initApp(): void {
   // Initial sync with FastAPI backend
   fetchLiveBackendTelemetry();
 
-  // Continuous sync interval (every 3 seconds for live dashboard responsiveness)
+  // Continuous sync interval (pauses automatically when tab is hidden)
   setInterval(() => {
+    if (typeof document !== 'undefined' && document.hidden) return;
     fetchLiveBackendTelemetry();
   }, 3000);
 }

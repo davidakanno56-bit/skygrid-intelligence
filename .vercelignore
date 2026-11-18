@@ -5,6 +5,7 @@
 /backend/
 /server.py
 /test_suite.py
+/tests/
 /requirements.txt
 *.py
 *.pyc

@@ -1,10 +1,11 @@
 import os
 import sys
+import json
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 import datetime
 
-from fastapi import FastAPI, Depends, Header, HTTPException, Query, Response, status
+from fastapi import FastAPI, Depends, Header, HTTPException, Query, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -15,13 +16,16 @@ from backend.database import db
 from backend.ingestion import ingestion_pipeline
 from backend.alerts import alert_engine
 from backend.auth import (
-    authenticate_partner, create_api_key, list_api_keys, revoke_api_key, COMMERCIAL_TIERS
+    authenticate_partner, require_paid_enterprise, require_admin_auth,
+    create_api_key, list_api_keys, revoke_api_key, COMMERCIAL_TIERS, DEMO_EVALUATION_TIER
 )
 from backend.reports import (
     generate_csv_compliance_report, generate_pdf_compliance_report
 )
 from backend.billing import (
-    initiate_order, verify_and_activate_order, generate_proforma_invoice_pdf, CURRENCY_RATES
+    initiate_order, verify_and_activate_order, generate_proforma_invoice_pdf,
+    get_billing_status, verify_paystack_signature, verify_flutterwave_signature,
+    log_billing_audit, CURRENCY_RATES
 )
 
 app = FastAPI(
@@ -46,8 +50,18 @@ app.add_middleware(
 
 class CreateApiKeyRequest(BaseModel):
     name: str
-    license_type: str = "regional_hub" # regional_hub ($2,500/mo), global_cargo_carrier ($7,500/mo), sovereign_defense (Custom)
+    license_type: str = "demo_evaluation"
     billing_email: Optional[str] = ""
+    is_paid_enterprise: bool = False
+    verified_payment_ref: Optional[str] = None
+    expires_in_days: int = 30
+
+class EnterpriseEnquiryRequest(BaseModel):
+    full_name: str
+    organization: str
+    email: str
+    interest_tier: str = "commercial_api"
+    message: Optional[str] = ""
 
 class CreateWebhookRequest(BaseModel):
     url: str
@@ -96,12 +110,18 @@ def get_live_corridor(
     corridor = ingestion_pipeline.get_corridor(corridor_id)
     weather = ingestion_pipeline.get_weather()
     stats = ingestion_pipeline.get_cache_stats()
+    is_sim = stats.get("is_simulation_mode", True)
     return {
         "corridor": corridor,
         "weather": weather,
         "cache_stats": stats,
         "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-        "client_tier": partner.get("tier", "enterprise")
+        "client_tier": partner.get("tier", "demo_evaluation"),
+        "subscription_status": partner.get("subscription_status", "DEMO_EVALUATION"),
+        "is_paid_enterprise": bool(partner.get("is_paid_enterprise", False)),
+        "data_mode": "SIMULATION_MODE" if is_sim else "LIVE_PROVIDER",
+        "is_simulation_mode": is_sim,
+        "disclaimer": "SIMULATED TRAFFIC — NOT FOR OPERATIONAL USE" if is_sim else "External telemetry feed active"
     }
 
 @app.get("/api/v1/corridor/all", summary="Get all active air corridors")
@@ -131,12 +151,16 @@ def get_dxb_risk_index(partner: dict = Depends(authenticate_partner)):
         "updated_at": weather["last_updated"]
     }
 
-@app.get("/api/v1/telemetry/flights", summary="Get live flight vectors and calculated risk scores")
+@app.get("/api/v1/telemetry/flights", summary="Get aircraft vectors and calculated risk scores")
 def get_flight_vectors(partner: dict = Depends(authenticate_partner)):
     flights = ingestion_pipeline.get_flights()
+    is_sim = ingestion_pipeline.source_aviation != "LIVE_AVIATIONSTACK_API"
     return {
         "count": len(flights),
         "flights": flights,
+        "data_mode": "SIMULATION_MODE" if is_sim else "LIVE_PROVIDER",
+        "is_simulation_mode": is_sim,
+        "disclaimer": "SIMULATED TRAFFIC — NOT FOR OPERATIONAL USE" if is_sim else "External telemetry feed active",
         "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
     }
 
@@ -213,24 +237,42 @@ def get_directives_audit(
 
 # ==================== MULTI-TENANT ENTERPRISE AUTH & KEY PORTAL ====================
 
-@app.get("/api/v1/auth/licensing/tiers", summary="List strict commercial B2B licensing tiers")
+@app.get("/api/v1/auth/licensing/tiers", summary="List provisional commercial B2B licensing tiers")
 def get_licensing_tiers():
     return {
-        "licensing_policy": "STRICT_PAID_ENTERPRISE_ONLY",
-        "zero_free_tier": True,
+        "licensing_policy": "PROVISIONAL_ENTERPRISE_ENQUIRY",
+        "live_payments_enabled": settings.BILLING_LIVE_ENABLED,
+        "demo_tier": DEMO_EVALUATION_TIER,
         "tiers": COMMERCIAL_TIERS
     }
 
-@app.post("/api/v1/auth/keys", summary="Generate a new commercial enterprise x-api-key token")
-def create_key(req: CreateApiKeyRequest):
-    key_info = create_api_key(
-        name=req.name,
-        license_type=req.license_type,
-        billing_email=req.billing_email or ""
-    )
+@app.get("/api/v1/enterprise/protected-status", summary="Verify server-side paid enterprise entitlement")
+def get_protected_enterprise_status(partner: dict = Depends(require_paid_enterprise)):
+    return {
+        "authorized": True,
+        "organization": partner.get("name"),
+        "license_id": partner.get("license_id"),
+        "subscription_status": partner.get("subscription_status"),
+        "is_paid_enterprise": True
+    }
+
+@app.post("/api/v1/auth/keys", summary="Admin-only API key provisioning (public minting disabled)")
+def create_key(req: CreateApiKeyRequest, admin: dict = Depends(require_admin_auth)):
+    try:
+        key_info = create_api_key(
+            name=req.name,
+            license_type=req.license_type,
+            billing_email=req.billing_email or "",
+            is_paid_enterprise=req.is_paid_enterprise,
+            verified_payment_ref=req.verified_payment_ref,
+            expires_in_days=req.expires_in_days
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
     return {
         "status": "created",
-        "api_key": key_info["raw_key"], # Displayed once!
+        "api_key": key_info["raw_key"],
         "key_prefix": key_info["key_prefix"],
         "name": key_info["name"],
         "license_type": key_info["tier"],
@@ -239,95 +281,118 @@ def create_key(req: CreateApiKeyRequest):
         "monthly_fee_usd": key_info["monthly_fee_usd"],
         "sla_uptime": key_info["sla_uptime"],
         "rate_limit_rpm": key_info["rate_limit_rpm"],
-        "is_paid_enterprise": True,
-        "message": "Commercial license activated. Store this key securely; the raw token will not be shown again."
+        "is_paid_enterprise": key_info["is_paid_enterprise"],
+        "subscription_status": key_info["subscription_status"],
+        "expires_at": key_info["expires_at"],
+        "message": "API token provisioned by authorized administrator."
     }
 
-@app.get("/api/v1/auth/keys", summary="List partner API keys and usage statistics")
+@app.get("/api/v1/auth/keys", summary="List access keys and genuine subscription status")
 def get_keys():
     keys = list_api_keys()
     return {
         "count": len(keys),
+        "environment_mode": "LIVE_BILLING" if settings.BILLING_LIVE_ENABLED else "DEMO_EVALUATION",
+        "live_payments_enabled": settings.BILLING_LIVE_ENABLED,
+        "public_key_minting_enabled": False,
         "keys": keys
     }
 
-@app.delete("/api/v1/auth/keys/{key_id}", summary="Revoke a partner API key")
-def delete_key(key_id: int):
+@app.delete("/api/v1/auth/keys/{key_id}", summary="Admin-only API key revocation")
+def delete_key(key_id: int, admin: dict = Depends(require_admin_auth)):
     revoke_api_key(key_id)
     return {"status": "revoked", "key_id": key_id}
 
-# ==================== COMMERCIAL BILLING & PAYMENT GATEWAY ====================
+# ==================== COMMERCIAL BILLING, ENQUIRIES & SIGNED WEBHOOKS ====================
 
-@app.get("/api/v1/billing/config", summary="Get payment gateway and currency settlement configuration")
+@app.get("/api/v1/billing/config", summary="Get honest billing activation status and indicative currency table")
 def get_billing_config():
+    return get_billing_status()
+
+@app.post("/api/v1/enquiries", summary="Submit a commercial licensing or technical evaluation enquiry")
+def submit_enterprise_enquiry(req: EnterpriseEnquiryRequest):
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    ref = f"ENQ-SKY-{int(datetime.datetime.now().timestamp() * 1000) % 900000 + 100000}"
+    db.execute_write("""
+        INSERT INTO enterprise_enquiries (full_name, organization, email, interest_tier, message, status, created_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s);
+    """, (req.full_name.strip(), req.organization.strip(), req.email.strip(), req.interest_tier.strip(), (req.message or "").strip(), "RECEIVED", now))
     return {
-        "payment_gateway": settings.PAYMENT_GATEWAY,
-        "supported_currencies": CURRENCY_RATES,
-        "flutterwave_public_key": settings.FLUTTERWAVE_PUBLIC_KEY,
-        "paystack_public_key": settings.PAYSTACK_PUBLIC_KEY,
-        "raenest_wire_settlement": {
-            "beneficiary_name": settings.RAENEST_BENEFICIARY_NAME,
-            "bank_name": settings.RAENEST_USD_BANK_NAME,
-            "swift_bic": settings.RAENEST_SWIFT_BIC
-        }
+        "status": "RECEIVED",
+        "enquiry_ref": ref,
+        "message": "Enterprise enquiry recorded. Akanno Tech Labs Limited will follow up directly."
     }
 
-@app.post("/api/v1/billing/checkout/initiate", summary="Initiate commercial checkout order with currency conversion")
+@app.post("/api/v1/billing/checkout/initiate", summary="Initiate server-side checkout (disabled until verified merchant onboarding)")
 def initiate_checkout(req: InitiateCheckoutRequest):
-    order = initiate_order(
+    return initiate_order(
         organization_name=req.organization_name,
         billing_email=req.billing_email,
         license_type=req.license_type,
         currency=req.currency,
         payment_method=req.payment_method
     )
-    return order
 
-@app.post("/api/v1/billing/checkout/complete", summary="Verify payment and issue paid commercial X-API-Key")
+@app.post("/api/v1/billing/checkout/complete", summary="Disabled public checkout completion — activation requires signed provider webhook")
 def complete_checkout(req: CompleteCheckoutRequest):
-    result = verify_and_activate_order(
-        order_ref=req.order_ref,
-        gateway_ref=req.gateway_reference
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Client-triggered payment completion is disabled for security. Paid entitlements activate exclusively via cryptographically verified payment webhooks."
     )
-    return result
 
-@app.get("/api/v1/billing/invoice/{order_ref}", summary="Download official Proforma Invoice PDF")
-def download_invoice(order_ref: str):
+@app.get("/api/v1/billing/invoice/{order_ref}", summary="Admin-only: download provisional quotation PDF")
+def download_invoice(order_ref: str, admin: dict = Depends(require_admin_auth)):
     pdf_bytes = generate_proforma_invoice_pdf(order_ref)
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
         headers={
-            "Content-Disposition": f"attachment; filename=Proforma_Invoice_{order_ref}.pdf"
+            "Content-Disposition": f"attachment; filename=Provisional_Quote_{order_ref}.pdf"
         }
     )
 
-@app.post("/api/v1/billing/webhook/flutterwave", summary="Inbound Flutterwave payment webhook")
+@app.post("/api/v1/billing/webhook/flutterwave", summary="Inbound signed Flutterwave payment webhook")
 async def flutterwave_webhook(request: Request):
+    if not settings.BILLING_LIVE_ENABLED:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Live billing webhooks are not enabled.")
     body_bytes = await request.body()
+    verif_hash = request.headers.get("verif-hash")
+    if not verify_flutterwave_signature(verif_hash):
+        log_billing_audit("WEBHOOK_REJECTED", "flutterwave", "UNKNOWN", body_bytes, False, "UNVERIFIED", "Invalid or missing verif-hash header")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Flutterwave webhook signature.")
     try:
-        data = json.loads(body_bytes.decode())
+        data = json.loads(body_bytes.decode("utf-8"))
         event = data.get("event")
         tx_data = data.get("data", {})
         tx_ref = tx_data.get("tx_ref")
         if event == "charge.completed" and tx_data.get("status") == "successful" and tx_ref:
-            verify_and_activate_order(tx_ref, gateway_ref=str(tx_data.get("id")))
+            verify_and_activate_order(tx_ref, gateway_ref=str(tx_data.get("id")), provider="flutterwave", verified_by_webhook=True)
             return {"status": "verified"}
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"[FLW WEBHOOK ERROR] {e}")
     return {"status": "acknowledged"}
 
-@app.post("/api/v1/billing/webhook/paystack", summary="Inbound Paystack payment webhook")
+@app.post("/api/v1/billing/webhook/paystack", summary="Inbound signed Paystack payment webhook")
 async def paystack_webhook(request: Request):
+    if not settings.BILLING_LIVE_ENABLED:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Live billing webhooks are not enabled.")
     body_bytes = await request.body()
+    signature = request.headers.get("x-paystack-signature")
+    if not verify_paystack_signature(body_bytes, signature):
+        log_billing_audit("WEBHOOK_REJECTED", "paystack", "UNKNOWN", body_bytes, False, "UNVERIFIED", "Invalid or missing x-paystack-signature")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Paystack webhook signature.")
     try:
-        data = json.loads(body_bytes.decode())
+        data = json.loads(body_bytes.decode("utf-8"))
         event = data.get("event")
         tx_data = data.get("data", {})
         reference = tx_data.get("reference")
         if event == "charge.success" and reference:
-            verify_and_activate_order(reference, gateway_ref=str(tx_data.get("id")))
+            verify_and_activate_order(reference, gateway_ref=str(tx_data.get("id")), provider="paystack", verified_by_webhook=True)
             return {"status": "verified"}
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"[PAYSTACK WEBHOOK ERROR] {e}")
     return {"status": "acknowledged"}
@@ -339,18 +404,23 @@ def get_webhooks():
     hooks = db.execute_query("SELECT id, url, event_types, is_active, created_at, last_triggered_at, failure_count FROM webhooks ORDER BY created_at DESC;")
     return {"webhooks": hooks}
 
-@app.post("/api/v1/webhooks", summary="Register an outbound webhook or Slack/Teams endpoint")
-def add_webhook(req: CreateWebhookRequest):
+@app.post("/api/v1/webhooks", summary="Admin-only: register an outbound webhook endpoint")
+def add_webhook(req: CreateWebhookRequest, admin: dict = Depends(require_admin_auth)):
+    from urllib.parse import urlparse
+    parsed = urlparse(req.url.strip())
+    host = (parsed.hostname or "").lower()
+    if parsed.scheme != "https" or not host or host in ("localhost", "127.0.0.1", "0.0.0.0", "::1") or host.startswith(("169.254.", "10.", "192.168.")):
+        raise HTTPException(status_code=400, detail="Webhook URL must be a public HTTPS endpoint.")
     now_str = datetime.datetime.now(datetime.timezone.utc).isoformat()
     secret = req.secret or settings.WEBHOOK_SIGNING_SECRET
     db.execute_write("""
         INSERT INTO webhooks (url, event_types, secret, is_active, created_at, last_triggered_at, failure_count)
         VALUES (%s, %s, %s, %s, %s, %s, %s);
-    """, (req.url, req.event_types, secret, 1, now_str, now_str, 0))
-    return {"status": "registered", "url": req.url, "event_types": req.event_types}
+    """, (req.url.strip(), req.event_types, secret, 1, now_str, now_str, 0))
+    return {"status": "registered", "url": req.url.strip(), "event_types": req.event_types}
 
-@app.delete("/api/v1/webhooks/{hook_id}", summary="Delete an outbound webhook")
-def delete_webhook(hook_id: int):
+@app.delete("/api/v1/webhooks/{hook_id}", summary="Admin-only: delete an outbound webhook")
+def delete_webhook(hook_id: int, admin: dict = Depends(require_admin_auth)):
     db.execute_write("DELETE FROM webhooks WHERE id = %s;", (hook_id,))
     return {"status": "deleted", "hook_id": hook_id}
 
@@ -427,8 +497,8 @@ def get_system_status():
         "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
     }
 
-@app.post("/api/v1/system/api-keys", summary="Update Aviationstack and Weatherstack API keys dynamically")
-def update_api_keys(req: UpdateApiKeysRequest):
+@app.post("/api/v1/system/api-keys", summary="Admin-only: update Aviationstack and Weatherstack API keys dynamically")
+def update_api_keys(req: UpdateApiKeysRequest, admin: dict = Depends(require_admin_auth)):
     if req.aviationstack_key is not None:
         settings.AVIATIONSTACK_API_KEY = req.aviationstack_key.strip()
     if req.weatherstack_key is not None:
@@ -444,8 +514,8 @@ def update_api_keys(req: UpdateApiKeysRequest):
         "source_weather": ingestion_pipeline.source_weather
     }
 
-@app.post("/api/v1/system/db-config", summary="Update or test PostgreSQL connection string dynamically")
-def update_db_config(req: UpdateDbConfigRequest):
+@app.post("/api/v1/system/db-config", summary="Admin-only: update or test PostgreSQL connection string")
+def update_db_config(req: UpdateDbConfigRequest, admin: dict = Depends(require_admin_auth)):
     settings.DATABASE_URL = req.database_url.strip()
     db.conn_string = settings.DATABASE_URL
     db.test_connection()

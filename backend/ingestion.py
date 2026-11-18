@@ -19,8 +19,8 @@ class LiveIngestionPipeline:
         self.next_poll_time = 0.0
         self.cache_hits = 0
         self.api_call_count = 0
-        self.source_aviation = "FALLBACK_STREAM"
-        self.source_weather = "FALLBACK_STREAM"
+        self.source_aviation = "SIMULATION_MODE"
+        self.source_weather = "SIMULATION_MODE"
 
         # Cached live state
         self.cached_weather: Dict[str, Any] = {
@@ -314,7 +314,7 @@ class LiveIngestionPipeline:
                 "hazardNote": "Clear oceanic arrival corridor. Zero hazard profile."
             },
             {
-                "id": "DLH-8220",
+                "id": "FL-8220",
                 "callsign": "DLH-8220",
                 "carrier": "Lufthansa Cargo AG",
                 "aircraft": "Boeing 777F",
@@ -339,7 +339,8 @@ class LiveIngestionPipeline:
                 "hazardNote": "Standard STAR transition on schedule."
             },
             {
-                "id": "CLX-714",
+                "id": "FL-714",
+                "icao24": "4D0114",
                 "callsign": "CLX-714",
                 "carrier": "Cargolux International",
                 "aircraft": "Boeing 747-8F",
@@ -349,6 +350,7 @@ class LiveIngestionPipeline:
                 "destinationCity": "Dubai",
                 "altitude": 35000,
                 "flightLevel": "FL350",
+                "verticalRateFpm": -400,
                 "speed": 465,
                 "mach": 0.81,
                 "heading": 142,
@@ -361,9 +363,142 @@ class LiveIngestionPipeline:
                 "cargoWeightTonnes": 112.0,
                 "transponder": "7005-X",
                 "etaMinutes": 35,
-                "hazardNote": "Geomagnetic beacon jitter detected; autonomous vector offset 15° Right requested."
+                "isSimulated": True,
+                "hazardNote": "Simulated windshear corridor boundary; advisory vector offset 15° Right.",
+                "vectorHistory": [[25.75, 55.1], [25.6, 55.3], [25.48, 55.48], [25.385, 55.625]]
+            },
+            {
+                "id": "FL-304",
+                "icao24": "896304",
+                "callsign": "UAE-304",
+                "carrier": "Emirates SkyCargo Regional",
+                "aircraft": "Boeing 777F",
+                "origin": "RUH",
+                "originCity": "Riyadh King Khalid",
+                "destination": "DXB",
+                "destinationCity": "Dubai",
+                "altitude": 21000,
+                "flightLevel": "FL210",
+                "verticalRateFpm": -1200,
+                "speed": 378,
+                "mach": 0.68,
+                "heading": 92,
+                "lat": 25.272,
+                "lng": 54.825,
+                "riskScore": 9.6,
+                "riskCategory": "minimal",
+                "status": "Final Descent",
+                "cargoPayload": "Regional Medical Diagnostics & Express Mail",
+                "cargoWeightTonnes": 48.5,
+                "transponder": "2410-S",
+                "etaMinutes": 11,
+                "isSimulated": True,
+                "hazardNote": "Simulated STAR arrival sequence into OMDB Runway 12L.",
+                "vectorHistory": [[25.29, 54.35], [25.285, 54.52], [25.278, 54.68], [25.272, 54.825]]
+            },
+            {
+                "id": "FL-518",
+                "icao24": "896518",
+                "callsign": "ETD-518",
+                "carrier": "Etihad Cargo",
+                "aircraft": "Boeing 777-200F",
+                "origin": "AUH",
+                "originCity": "Abu Dhabi Zayed",
+                "destination": "BOM",
+                "destinationCity": "Mumbai",
+                "altitude": 18500,
+                "flightLevel": "FL185",
+                "verticalRateFpm": 1650,
+                "speed": 362,
+                "mach": 0.64,
+                "heading": 72,
+                "lat": 24.785,
+                "lng": 55.425,
+                "riskScore": 12.4,
+                "riskCategory": "low",
+                "status": "In Corridor",
+                "cargoPayload": "Cold-Chain Pharmaceuticals & Precision Optics",
+                "cargoWeightTonnes": 64.0,
+                "transponder": "3112-S",
+                "etaMinutes": 48,
+                "isSimulated": True,
+                "hazardNote": "Simulated climb out through southern Dubai sector.",
+                "vectorHistory": [[24.55, 54.85], [24.63, 55.04], [24.71, 55.23], [24.785, 55.425]]
+            },
+            {
+                "id": "FL-621",
+                "icao24": "A81621",
+                "callsign": "UPS-621",
+                "carrier": "UPS Airlines International",
+                "aircraft": "Boeing 747-8F",
+                "origin": "CGN",
+                "originCity": "Cologne Bonn",
+                "destination": "DWC",
+                "destinationCity": "Al Maktoum",
+                "altitude": 29000,
+                "flightLevel": "FL290",
+                "verticalRateFpm": -850,
+                "speed": 438,
+                "mach": 0.75,
+                "heading": 156,
+                "lat": 25.518,
+                "lng": 55.025,
+                "riskScore": 17.8,
+                "riskCategory": "low",
+                "status": "In Corridor",
+                "cargoPayload": "Industrial Automation & Express Parcels",
+                "cargoWeightTonnes": 108.6,
+                "transponder": "5501-S",
+                "etaMinutes": 16,
+                "isSimulated": True,
+                "hazardNote": "Simulated transition via RIKET northern inbound gate.",
+                "vectorHistory": [[25.88, 54.78], [25.75, 54.87], [25.63, 54.95], [25.518, 55.025]]
+            },
+            {
+                "id": "FL-887",
+                "icao24": "484887",
+                "callsign": "KLM-887",
+                "carrier": "KLM Cargo Martinair",
+                "aircraft": "Boeing 747-400ERF",
+                "origin": "AMS",
+                "originCity": "Amsterdam Schiphol",
+                "destination": "DXB",
+                "destinationCity": "Dubai",
+                "altitude": 33000,
+                "flightLevel": "FL330",
+                "verticalRateFpm": -600,
+                "speed": 472,
+                "mach": 0.80,
+                "heading": 118,
+                "lat": 25.442,
+                "lng": 54.765,
+                "riskScore": 21.4,
+                "riskCategory": "watch",
+                "status": "In Corridor",
+                "cargoPayload": "Perishable Floriculture & Aerospace Hydraulics",
+                "cargoWeightTonnes": 91.5,
+                "transponder": "6204-S",
+                "etaMinutes": 24,
+                "isSimulated": True,
+                "hazardNote": "Simulated jetstream convergence monitoring at FL330.",
+                "vectorHistory": [[25.68, 54.25], [25.60, 54.42], [25.52, 54.60], [25.442, 54.765]]
             }
         ]
+        # Ensure all base synthetic records carry explicit simulation metadata and vectorHistory
+        for idx, fl in enumerate(self.cached_flights):
+            fl.setdefault("isSimulated", True)
+            fl.setdefault("icao24", f"896{100 + idx:03X}"[:6])
+            fl.setdefault("verticalRateFpm", -300 if idx % 2 == 0 else 0)
+            if not fl.get("vectorHistory"):
+                rad = math.radians(fl["heading"])
+                hist = []
+                for step in range(4, 0, -1):
+                    hist.append([
+                        round(fl["lat"] - math.cos(rad) * step * 0.09, 4),
+                        round(fl["lng"] - math.sin(rad) * step * 0.09, 4)
+                    ])
+                hist.append([fl["lat"], fl["lng"]])
+                fl["vectorHistory"] = hist
 
     def start(self):
         """Starts the background 60s ingestion scheduler."""
@@ -451,7 +586,7 @@ class LiveIngestionPipeline:
             self.cached_weather["windshear_index_kts"] = shear
             self.cached_weather["hazard_level"] = "ELEVATED" if shear > settings.WINDSHEAR_THRESHOLD_KTS else "LOW"
             self.cached_weather["last_updated"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
-            self.source_weather = "HIGH_FIDELITY_REALTIME_STREAM"
+            self.source_weather = "SIMULATION_MODE"
 
     def _poll_aviationstack(self):
         api_key = settings.AVIATIONSTACK_API_KEY
@@ -515,18 +650,45 @@ class LiveIngestionPipeline:
             except Exception as e:
                 print(f"[AVIATIONSTACK INGESTION ERROR] {e}. Utilizing high-fidelity ADS-B stream.")
 
-        # Real-time high-fidelity fallback stream: micro-advance positions & speeds
+        # Clearly-labelled Simulation Mode: advance synthetic aircraft smoothly along heading
         with self.lock:
             for flight in self.cached_flights:
-                # Slight ground track movement towards DXB (25.2532, 55.3657)
-                d_lat = (25.2532 - flight["lat"]) * 0.015
-                d_lng = (55.3657 - flight["lng"]) * 0.015
-                flight["lat"] = round(flight["lat"] + d_lat, 4)
-                flight["lng"] = round(flight["lng"] + d_lng, 4)
-                # Random speed jitter
+                rad = math.radians(flight["heading"])
+                step_deg = 0.012 * (flight["speed"] / 450.0)
+                new_lat = round(flight["lat"] + math.cos(rad) * step_deg, 4)
+                new_lng = round(flight["lng"] + math.sin(rad) * step_deg, 4)
+
+                # Keep simulated traffic within Dubai primary radar airspace bounds
+                wrapped = False
+                if new_lng > 56.45:
+                    new_lng = 54.45
+                    wrapped = True
+                elif new_lng < 54.25:
+                    new_lng = 56.20
+                    wrapped = True
+                if new_lat > 26.05:
+                    new_lat = 24.55
+                    wrapped = True
+                elif new_lat < 24.45:
+                    new_lat = 25.90
+                    wrapped = True
+
+                flight["lat"] = new_lat
+                flight["lng"] = new_lng
                 flight["speed"] = max(260, min(540, flight["speed"] + random.randint(-2, 2)))
                 flight["mach"] = round(flight["speed"] / 580.0, 2)
-            self.source_aviation = "HIGH_FIDELITY_REALTIME_STREAM"
+                flight["isSimulated"] = True
+
+                history = flight.get("vectorHistory") or []
+                if wrapped:
+                    history = [[new_lat, new_lng]]
+                else:
+                    history.append([new_lat, new_lng])
+                    if len(history) > 18:
+                        history = history[-18:]
+                flight["vectorHistory"] = history
+
+            self.source_aviation = "SIMULATION_MODE"
 
     def _evaluate_corridor_shifts(self):
         """Calculates corridor risk indices and stores snapshots in database."""
@@ -614,6 +776,7 @@ class LiveIngestionPipeline:
                 "seconds_until_next_poll": max(0, int(self.next_poll_time - now)),
                 "aviationstack_source": self.source_aviation,
                 "weatherstack_source": self.source_weather,
+                "is_simulation_mode": self.source_aviation != "LIVE_AVIATIONSTACK_API",
                 "has_aviationstack_key": bool(settings.AVIATIONSTACK_API_KEY),
                 "has_weatherstack_key": bool(settings.WEATHERSTACK_API_KEY),
                 "db_engine": db.engine_name
