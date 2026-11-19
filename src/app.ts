@@ -425,6 +425,10 @@ export function setRadarViewMode(mode: '3d' | '2d'): void {
   radarEngine.setViewMode(mode);
 }
 
+export function setRadarBasemap(mode: 'live' | 'satellite' | 'dark'): void {
+  radarEngine.setBasemap(mode);
+}
+
 export function toggleLayer(layer: 'vectors' | 'trails' | 'sweep' | 'grid'): void {
   radarEngine.toggleLayer(layer);
 }
@@ -1519,6 +1523,7 @@ window.selectLicensingTier = selectLicensingTier;
 window.handleCorridorChange = handleCorridorChange;
 window.toggleAudioFeedback = toggleAudioFeedback;
 window.setRadarViewMode = setRadarViewMode;
+window.setRadarBasemap = setRadarBasemap;
 window.toggleLayer = toggleLayer;
 window.selectRadarAircraft = selectRadarAircraft;
 window.closeSelectedAircraftPanel = closeSelectedAircraftPanel;

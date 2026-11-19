@@ -1692,6 +1692,19 @@
 
               <!-- Radar View Modes & Toggle Buttons -->
               <div class="flex items-center space-x-2 mt-2 sm:mt-0 font-mono text-xs">
+                <!-- Basemap Switcher: Live Map | Satellite | Dark Scope -->
+                <div class="inline-flex rounded-md p-0.5 bg-obsidian-850 border border-slate-800">
+                  <button id="btn-basemap-live" onclick="window.setRadarBasemap('live')" title="Real Live Geographic Map (OpenStreetMap)" class="px-2.5 py-1 text-[11px] rounded bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/40 shadow-sm transition-all">
+                    🗺️ LIVE MAP
+                  </button>
+                  <button id="btn-basemap-satellite" onclick="window.setRadarBasemap('satellite')" title="Real Satellite Imagery (Esri World)" class="px-2.5 py-1 text-[11px] rounded text-slate-400 hover:text-white transition-all">
+                    🛰️ SATELLITE
+                  </button>
+                  <button id="btn-basemap-dark" onclick="window.setRadarBasemap('dark')" title="Aviation Tactical Dark Scope" class="px-2.5 py-1 text-[11px] rounded text-slate-400 hover:text-white transition-all">
+                    🎯 DARK
+                  </button>
+                </div>
+
                 <div class="inline-flex rounded-md p-0.5 bg-obsidian-850 border border-slate-800">
                   <button id="btn-mode-3d" onclick="window.setRadarViewMode('3d')" class="px-2.5 py-1 text-[11px] rounded bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/40 shadow-sm transition-all">
                     3D GLOBE
@@ -1726,6 +1739,19 @@
               
               <!-- Real Geographic MapLibre Vector Map Canvas -->
               <div id="tactical-map-container" class="absolute inset-0 w-full h-full"></div>
+
+              <!-- Visible Tactical Radar HUD Scope Grid Overlay (Always visible across all zoom/pitch) -->
+              <div id="radar-hud-grid-overlay" class="absolute inset-0 pointer-events-none z-10 overflow-hidden">
+                <svg class="w-full h-full opacity-65" xmlns="http://www.w3.org/2000/svg">
+                  <defs>
+                    <pattern id="tactical-scope-grid" width="64" height="64" patternUnits="userSpaceOnUse">
+                      <path d="M 64 0 L 0 0 0 64" fill="none" stroke="rgba(34, 211, 238, 0.35)" stroke-width="1.0" />
+                      <path d="M 32 0 L 32 64 M 0 32 L 64 32" fill="none" stroke="rgba(34, 211, 238, 0.18)" stroke-width="0.6" stroke-dasharray="3, 3" />
+                    </pattern>
+                  </defs>
+                  <rect width="100%" height="100%" fill="url(#tactical-scope-grid)" />
+                </svg>
+              </div>
 
               <!-- WebGL / Radar Engine Fallback and Error State -->
               <div id="radar-webgl-fallback" class="hidden absolute inset-0 z-20 flex flex-col items-center justify-center p-6 text-center bg-[#02050b]/95 backdrop-blur-sm font-mono text-xs">

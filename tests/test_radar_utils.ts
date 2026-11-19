@@ -23,12 +23,18 @@ for (const url of cartoSource.tiles) {
 assert.ok(cartoSource.attribution.includes('OpenStreetMap'), 'Must preserve OpenStreetMap attribution');
 assert.ok(cartoSource.attribution.includes('CARTO'), 'Must preserve CARTO attribution');
 
-// 2. Basemap resolution with & without CARTO key (no fake keys!)
-const withoutKey = resolveTacticalBasemap('');
-assert.equal(withoutKey.provider, 'esri-dark-gray');
-assert.equal(withoutKey.hasCartoKey, false);
+// 2. Basemap resolution: defaults to REAL LIVE MAP (OpenStreetMap), supports Satellite & Dark
+const defaultLiveMap = resolveTacticalBasemap('');
+assert.equal(defaultLiveMap.provider, 'osm-live');
+assert.equal(defaultLiveMap.hasCartoKey, false);
 
-const withKey = resolveTacticalBasemap('valid_carto_token');
+const satelliteMode = resolveTacticalBasemap('', 'satellite');
+assert.equal(satelliteMode.provider, 'satellite-live');
+
+const darkWithoutKey = resolveTacticalBasemap('', 'dark');
+assert.equal(darkWithoutKey.provider, 'esri-dark-gray');
+
+const withKey = resolveTacticalBasemap('valid_carto_token', 'dark');
 assert.equal(withKey.provider, 'carto-dark-matter');
 assert.equal(withKey.hasCartoKey, true);
 

@@ -3,16 +3,94 @@ import type { FlightVector } from '../types/telemetry';
 
 export const OPENFREEMAP_DARK_STYLE_URL = 'https://tiles.openfreemap.org/styles/dark';
 
+export const OSM_ATTRIBUTION_HTML =
+  '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors';
+
 export const CARTO_ATTRIBUTION_HTML =
   '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener noreferrer">CARTO</a>';
 
 export const ESRI_ATTRIBUTION_HTML =
   'Tiles &copy; <a href="https://www.esri.com" target="_blank" rel="noopener noreferrer">Esri</a> &mdash; Esri, DeLorme, NAVTEQ, TomTom';
 
+export const SATELLITE_ATTRIBUTION_HTML =
+  'Imagery &copy; <a href="https://www.esri.com" target="_blank" rel="noopener noreferrer">Esri</a>, Maxar, Earthstar Geographics';
+
 /**
- * High-reliability, keyless dark canvas raster basemap style provided by Esri ArcGIS Online.
- * Requires zero API keys, never watermarks, and provides crisp global dark oceans,
- * UAE coastlines, Dubai shoreline, international borders, and highway terrain.
+ * 1. REAL LIVE GEOGRAPHIC MAP (OpenStreetMap Standard)
+ * Full authentic geographic map with real blue waters (Persian Gulf), Dubai shoreline,
+ * roads, highways, and airport runways (Dubai DXB & Al Maktoum DWC). Zero API keys required.
+ */
+export const REAL_LIVE_MAP_STYLE: maplibregl.StyleSpecification = {
+  version: 8,
+  sources: {
+    'osm-tiles': {
+      type: 'raster',
+      tiles: [
+        'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
+      ],
+      tileSize: 256,
+      attribution: OSM_ATTRIBUTION_HTML
+    }
+  },
+  layers: [
+    {
+      id: 'osm-tiles-layer',
+      type: 'raster',
+      source: 'osm-tiles',
+      minzoom: 0,
+      maxzoom: 19
+    }
+  ]
+};
+
+/**
+ * 2. REAL LIVE SATELLITE IMAGERY (Esri World Imagery + Places)
+ * High-resolution photographic satellite view of Earth from orbit, showing actual
+ * Dubai desert, Persian Gulf waters, Palm Jumeirah, and airport runways. Zero API keys.
+ */
+export const REAL_SATELLITE_MAP_STYLE: maplibregl.StyleSpecification = {
+  version: 8,
+  sources: {
+    'satellite-tiles': {
+      type: 'raster',
+      tiles: [
+        'https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+      ],
+      tileSize: 256,
+      attribution: SATELLITE_ATTRIBUTION_HTML
+    },
+    'satellite-labels': {
+      type: 'raster',
+      tiles: [
+        'https://services.arcgisonline.com/arcgis/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}'
+      ],
+      tileSize: 256
+    }
+  },
+  layers: [
+    {
+      id: 'satellite-tiles-layer',
+      type: 'raster',
+      source: 'satellite-tiles',
+      minzoom: 0,
+      maxzoom: 19
+    },
+    {
+      id: 'satellite-labels-layer',
+      type: 'raster',
+      source: 'satellite-labels',
+      minzoom: 0,
+      maxzoom: 19,
+      paint: {
+        'raster-opacity': 0.85
+      }
+    }
+  ]
+};
+
+/**
+ * 3. TACTICAL DARK CANVAS (Esri World Dark Gray Base + Reference)
+ * Muted dark slate canvas built for night Operations Control Centers (OCC). Zero API keys.
  */
 export const ESRI_DARK_GRAY_RASTER_STYLE: maplibregl.StyleSpecification = {
   version: 8,
@@ -108,32 +186,51 @@ export function buildCartoDarkMatterStyle(apiKey: string): maplibregl.StyleSpeci
 }
 
 export interface BasemapResolution {
-  provider: 'carto-dark-matter' | 'esri-dark-gray' | 'openfreemap-dark';
+  provider: 'osm-live' | 'satellite-live' | 'carto-dark-matter' | 'esri-dark-gray';
   style: string | maplibregl.StyleSpecification;
   hasCartoKey: boolean;
   label: string;
 }
 
 /**
- * Selects the authorized CARTO Dark Matter style when VITE_CARTO_BASEMAP_KEY is provided;
- * otherwise uses the high-reliability keyless Esri Dark Gray Canvas raster basemap
- * (zero watermarks, zero font dependencies, instant load across all networks).
+ * Resolves the active basemap style. Defaults to the REAL LIVE GEOGRAPHIC MAP (OpenStreetMap)
+ * so live blue oceans, coastlines, city roads, and airport runways are immediately visible.
  */
-export function resolveTacticalBasemap(cartoApiKey?: string): BasemapResolution {
+export function resolveTacticalBasemap(
+  cartoApiKey?: string,
+  mode: 'live' | 'satellite' | 'dark' = 'live'
+): BasemapResolution {
   const key = (cartoApiKey ?? '').trim();
-  if (key.length > 0) {
+  if (mode === 'satellite') {
     return {
-      provider: 'carto-dark-matter',
-      style: buildCartoDarkMatterStyle(key),
-      hasCartoKey: true,
-      label: 'CARTO DARK MATTER (AUTHORIZED)'
+      provider: 'satellite-live',
+      style: REAL_SATELLITE_MAP_STYLE,
+      hasCartoKey: false,
+      label: 'REAL LIVE SATELLITE (ESRI WORLD)'
     };
   }
+  if (mode === 'dark') {
+    if (key.length > 0) {
+      return {
+        provider: 'carto-dark-matter',
+        style: buildCartoDarkMatterStyle(key),
+        hasCartoKey: true,
+        label: 'CARTO DARK MATTER (AUTHORIZED)'
+      };
+    }
+    return {
+      provider: 'esri-dark-gray',
+      style: ESRI_DARK_GRAY_RASTER_STYLE,
+      hasCartoKey: false,
+      label: 'TACTICAL DARK CANVAS (ESRI)'
+    };
+  }
+  // Default: Real Live Geographic Map (OpenStreetMap)
   return {
-    provider: 'esri-dark-gray',
-    style: ESRI_DARK_GRAY_RASTER_STYLE,
+    provider: 'osm-live',
+    style: REAL_LIVE_MAP_STYLE,
     hasCartoKey: false,
-    label: 'TACTICAL DARK GRAY CANVAS (KEYLESS)'
+    label: 'REAL LIVE GEOGRAPHIC MAP (OPENSTREETMAP)'
   };
 }
 
@@ -421,9 +518,9 @@ export function buildTacticalGraticuleGeoJSON(): GeoJSONFeatureCollection {
       properties: {
         kind: 'graticule-parallel',
         isMajor,
-        color: isMajor ? '#22d3ee' : '#0891b2',
-        opacity: isMajor ? 0.38 : 0.18,
-        width: isMajor ? 1.2 : 0.75,
+        color: isMajor ? '#00e5ff' : '#0ea5e9',
+        opacity: isMajor ? 0.85 : 0.65,
+        width: isMajor ? 2.0 : 1.3,
         label: `${roundedLat.toFixed(2)}°N`
       },
       geometry: {
@@ -445,9 +542,9 @@ export function buildTacticalGraticuleGeoJSON(): GeoJSONFeatureCollection {
       properties: {
         kind: 'graticule-meridian',
         isMajor,
-        color: isMajor ? '#22d3ee' : '#0891b2',
-        opacity: isMajor ? 0.38 : 0.18,
-        width: isMajor ? 1.2 : 0.75,
+        color: isMajor ? '#00e5ff' : '#0ea5e9',
+        opacity: isMajor ? 0.85 : 0.65,
+        width: isMajor ? 2.0 : 1.3,
         label: `${roundedLng.toFixed(2)}°E`
       },
       geometry: {
@@ -473,9 +570,9 @@ export function buildTacticalGraticuleGeoJSON(): GeoJSONFeatureCollection {
       properties: {
         kind: 'radial-spoke',
         isMajor: isCardinal,
-        color: isCardinal ? '#38bdf8' : '#06b6d4',
-        opacity: isCardinal ? 0.35 : 0.20,
-        width: isCardinal ? 1.2 : 0.8,
+        color: isCardinal ? '#00e5ff' : '#0ea5e9',
+        opacity: isCardinal ? 0.85 : 0.60,
+        width: isCardinal ? 2.2 : 1.4,
         bearing: brg
       },
       geometry: {

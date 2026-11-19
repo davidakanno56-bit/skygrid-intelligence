@@ -3,6 +3,10 @@ import type { FlightVector } from '../types/telemetry';
 import type { AirportHub, CorridorCameraPreset, FlightArcDefinition, LayerToggleState } from '../types/radar';
 import {
   resolveTacticalBasemap,
+  REAL_LIVE_MAP_STYLE,
+  REAL_SATELLITE_MAP_STYLE,
+  ESRI_DARK_GRAY_RASTER_STYLE,
+  buildCartoDarkMatterStyle,
   TACTICAL_OFFLINE_DARK_STYLE,
   createRangeRingCoordinates,
   isValidCoordinate,
@@ -15,8 +19,8 @@ import {
   getRiskTrackColor
 } from './radarUtils';
 
-// Authorized CARTO Dark Matter (when VITE_CARTO_BASEMAP_KEY is configured) or Keyless Tactical Dark Canvas (Esri)
-const BASEMAP_RESOLUTION = resolveTacticalBasemap(import.meta.env.VITE_CARTO_BASEMAP_KEY as string | undefined);
+// Default to REAL LIVE GEOGRAPHIC MAP (OpenStreetMap) showing real blue oceans, coastlines & Dubai runways
+const BASEMAP_RESOLUTION = resolveTacticalBasemap(import.meta.env.VITE_CARTO_BASEMAP_KEY as string | undefined, 'live');
 export const TACTICAL_DARK_BASEMAP_STYLE = BASEMAP_RESOLUTION.style;
 
 export interface RadarEngineDeps {
@@ -851,6 +855,47 @@ export class TacticalRadarEngine {
     setVis('corridor-hazard-fill', this.layersState.sweep);
     setVis('corridor-hazard-line', this.layersState.sweep);
     setVis('tactical-graticule-lines', this.layersState.grid);
+
+    const hudGrid = document.getElementById('radar-hud-grid-overlay');
+    if (hudGrid) {
+      hudGrid.style.display = this.layersState.grid ? 'block' : 'none';
+    }
+  }
+
+  public setBasemap(mode: 'live' | 'satellite' | 'dark'): void {
+    this.deps.onPlayClick();
+    let style: maplibregl.StyleSpecification;
+    let label = 'REAL LIVE MAP (OPENSTREETMAP)';
+
+    if (mode === 'satellite') {
+      style = REAL_SATELLITE_MAP_STYLE;
+      label = 'REAL LIVE SATELLITE (ESRI WORLD)';
+    } else if (mode === 'dark') {
+      const key = (import.meta.env.VITE_CARTO_BASEMAP_KEY as string | undefined)?.trim();
+      style = key ? buildCartoDarkMatterStyle(key) : ESRI_DARK_GRAY_RASTER_STYLE;
+      label = key ? 'CARTO DARK MATTER (AUTHORIZED)' : 'TACTICAL DARK CANVAS (ESRI)';
+    } else {
+      style = REAL_LIVE_MAP_STYLE;
+      label = 'REAL LIVE GEOGRAPHIC MAP (OPENSTREETMAP)';
+    }
+
+    this.updateBasemapStatus(label);
+
+    const btnLive = document.getElementById('btn-basemap-live');
+    const btnSat = document.getElementById('btn-basemap-satellite');
+    const btnDark = document.getElementById('btn-basemap-dark');
+
+    const activeClass =
+      'px-2.5 py-1 text-[11px] rounded bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/40 shadow-sm transition-all';
+    const inactiveClass = 'px-2.5 py-1 text-[11px] rounded text-slate-400 hover:text-white transition-all';
+
+    if (btnLive) btnLive.className = mode === 'live' ? activeClass : inactiveClass;
+    if (btnSat) btnSat.className = mode === 'satellite' ? activeClass : inactiveClass;
+    if (btnDark) btnDark.className = mode === 'dark' ? activeClass : inactiveClass;
+
+    if (this.map) {
+      this.map.setStyle(style);
+    }
   }
 
   public toggleLayer(layer: 'vectors' | 'trails' | 'sweep' | 'grid'): void {
