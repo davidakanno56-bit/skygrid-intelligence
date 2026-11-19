@@ -63,7 +63,7 @@
   </script>
 
   <style>body{-webkit-font-smoothing:antialiased;margin:0;font-family:Inter,-apple-system,BlinkMacSystemFont,sans-serif;transition:background-color .25s,color .25s;overflow-x:hidden}html.dark body,body.dark-theme{color:#f1f5f9;--lightningcss-light: ;--lightningcss-dark:initial;color-scheme:dark;background-color:#030712}html:not(.dark) body,body.light-theme{color:#0f172a;--lightningcss-light:initial;--lightningcss-dark: ;color-scheme:light;background-color:#f8fafc}.bg-aero-light-grid{background-image:linear-gradient(90deg,#0ea5e90b 1px,#0000 1px),linear-gradient(#0ea5e90b 1px,#0000 1px);background-size:36px 36px}.aero-card-light{background:#fff;border:1px solid #e2e8f0;transition:all .25s cubic-bezier(.16,1,.3,1);box-shadow:0 1px 3px #0f172a0a,0 1px 2px -1px #0f172a08}.aero-card-light:hover{border-color:#7dd3fc;transform:translateY(-2px);box-shadow:0 12px 28px -4px #0284c717,0 4px 10px -2px #0284c70a}::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-track{background:#02050b}::-webkit-scrollbar-thumb{background:#1e293b;border-radius:2px}::-webkit-scrollbar-thumb:hover{background:#22d3ee}.bg-tactical-grid{background-image:linear-gradient(90deg,#22d3ee09 1px,#0000 1px),linear-gradient(#22d3ee09 1px,#0000 1px);background-size:28px 28px}.font-telemetry{font-feature-settings:"tnum" 1, "zero" 1;font-family:JetBrains Mono,monospace}.obsidian-card{-webkit-backdrop-filter:blur(14px);background:#060d1dc7;border:1px solid #22d3ee1f;transition:border-color .2s,box-shadow .2s}.obsidian-card:hover{border-color:#22d3ee47}.tactical-brackets{position:relative}.tactical-brackets:before{content:"";pointer-events:none;border-top:2px solid #22d3ee;border-left:2px solid #22d3ee;width:8px;height:8px;position:absolute;top:-1px;left:-1px}.tactical-brackets:after{content:"";pointer-events:none;border-bottom:2px solid #22d3ee;border-right:2px solid #22d3ee;width:8px;height:8px;position:absolute;bottom:-1px;right:-1px}@keyframes pulse-cyan{0%,to{opacity:.9;transform:scale(1)}50%{opacity:.4;transform:scale(1.08)}}.animate-pulse-cyan{animation:2.5s ease-in-out infinite pulse-cyan}@keyframes radar-scan{0%{transform:rotate(0)}to{transform:rotate(360deg)}}.animate-radar-scan{animation:5s linear infinite radar-scan}.status-badge-glow{box-shadow:0 0 12px -2px #22d3ee40}#tactical-map-container{background:#02050b;width:100%;height:100%;position:absolute;top:0;left:0}#tactical-map-container canvas,#tactical-map-container .maplibregl-canvas{outline:none}.maplibregl-popup{z-index:50}.maplibregl-popup-content{min-width:250px;color:#f1f5f9!important;background:#030712!important;border:1px solid #22d3ee73!important;border-radius:8px!important;padding:12px 14px!important;font-family:JetBrains Mono,monospace!important;box-shadow:0 12px 36px #000000e6,0 0 20px #22d3ee40!important}.maplibregl-popup-anchor-bottom .maplibregl-popup-tip{border-top-color:#030712!important}.maplibregl-popup-anchor-top .maplibregl-popup-tip{border-bottom-color:#030712!important}.maplibregl-popup-anchor-left .maplibregl-popup-tip{border-right-color:#030712!important}.maplibregl-popup-anchor-right .maplibregl-popup-tip{border-left-color:#030712!important}.maplibregl-popup-close-button{font-weight:700;color:#64748b!important;padding:4px 8px!important;font-size:16px!important}.maplibregl-popup-close-button:hover{color:#22d3ee!important;background:0 0!important}#tactical-map-container .maplibregl-ctrl-attrib{border:1px solid #22d3ee33;border-radius:4px;color:#94a3b8!important;background:#020612d1!important;font-family:JetBrains Mono,monospace!important;font-size:9px!important}#tactical-map-container .maplibregl-ctrl-attrib a{color:#67e8f9!important}#tactical-map-container .maplibregl-ctrl-scale{color:#67e8f9!important;background:#020612d9!important;border-color:#22d3ee!important;padding:1px 6px!important;font-family:JetBrains Mono,monospace!important;font-size:9px!important;font-weight:700!important}.tactical-hub-beacon{cursor:pointer;pointer-events:auto;z-index:4}.hub-beacon-inner{flex-direction:column;justify-content:center;align-items:center;width:44px;height:44px;display:flex;position:relative}.hub-beacon-core{z-index:2;background:#22d3ee;border:2px solid #fff;border-radius:50%;width:10px;height:10px;box-shadow:0 0 12px #22d3ee}.hub-beacon-core.primary{background:#10b981;box-shadow:0 0 16px #10b981}.hub-beacon-pulse{pointer-events:none;border:1.5px solid #22d3eeb3;border-radius:50%;width:32px;height:32px;animation:2.2s ease-out infinite tactical-pulse;position:absolute}.hub-beacon-pulse.primary{border-color:#10b981cc;width:42px;height:42px;animation:1.8s ease-out infinite tactical-pulse-primary}.hub-beacon-label{color:#22d3ee;white-space:nowrap;letter-spacing:.5px;pointer-events:none;background:#030712eb;border:1px solid #22d3ee8c;border-radius:3px;padding:1px 5px;font-family:JetBrains Mono,monospace;font-size:9px;font-weight:700;position:absolute;top:28px;box-shadow:0 2px 6px #000000bf}.hub-beacon-label.primary{color:#34d399;border-color:#10b981b3}@keyframes tactical-pulse{0%{opacity:1;transform:scale(.3)}to{opacity:0;transform:scale(1.6)}}@keyframes tactical-pulse-primary{0%{opacity:1;transform:scale(.3)}to{opacity:0;transform:scale(2)}}.tactical-plane-marker{cursor:pointer;pointer-events:auto;z-index:6}.tactical-plane-marker.is-selected{z-index:12}.plane-marker-inner{pointer-events:auto;flex-direction:column;align-items:center;display:flex;position:relative}.plane-icon-box{border-radius:50%;justify-content:center;align-items:center;width:26px;height:26px;transition:transform .25s,box-shadow .2s;display:flex}.tactical-plane-marker.is-selected .plane-icon-box{background:#22d3ee38;box-shadow:0 0 0 2px #fff,0 0 14px #22d3eef2}.plane-icon-svg{filter:drop-shadow(0 0 5px #22d3eed9);width:20px;height:20px}.plane-tag{color:#f8fafc;white-space:nowrap;background:#020612ed;border:1px solid #38bdf873;border-radius:3px;flex-direction:column;gap:1px;margin-top:2px;padding:2px 5px;font-family:JetBrains Mono,monospace;font-size:8.5px;line-height:1.25;display:flex;box-shadow:0 3px 10px #000000d9}.tactical-plane-marker.is-selected .plane-tag{background:#08162efa;border-color:#fff;box-shadow:0 0 14px #22d3ee8c}.plane-tag-row{align-items:center;gap:4px;display:flex}.plane-tag-meta{color:#94a3b8;font-size:7.5px}.plane-tag .cri-pill{border-radius:2px;padding:0 3px;font-size:7.5px;font-weight:700}@media (prefers-reduced-motion:reduce){.hub-beacon-pulse,.hub-beacon-pulse.primary,.animate-ping,.animate-pulse,.animate-ping-radar{animation:none!important}}</style>
-  <script type="module" crossorigin src="/assets/index-CCSrU0ZG.js"></script>
+  <script type="module" crossorigin src="/assets/index-CDLyC5ox.js"></script>
   <link rel="stylesheet" crossorigin href="/assets/index-qvkd0SPb.css">
 </head>
 <body class="min-h-screen flex flex-col selection:bg-sky-500/30 selection:text-sky-900 transition-colors duration-200">
@@ -1339,13 +1339,13 @@
                 <div class="w-2.5 h-2.5 bg-cyan-400 rounded-full animate-ping-radar"></div>
                 <div>
                   <div class="flex items-center space-x-2">
-                    <span class="text-xs font-bold text-white tracking-wider uppercase">DUBAI PRIMARY TACTICAL RADAR</span>
+                    <span id="radar-scope-title" class="text-xs font-bold text-white tracking-wider uppercase">DUBAI & ARABIAN GULF TACTICAL RADAR</span>
                     <span class="text-[10px] bg-cyan-950 text-cyan-300 border border-cyan-700/60 px-1.5 py-0.2 rounded font-semibold">
                       DXB / OMDB
                     </span>
                   </div>
                   <div class="text-[11px] text-cyan-400 font-telemetry tracking-tight">
-                    TARGET: <span class="text-white font-bold">25.2532° N, 55.3657° E</span> | RANGE: 250 NM | ELEV: SFC-FL450
+                    <span id="radar-scope-target-coords">TARGET: 25.2532° N, 55.3657° E</span> | <span id="radar-scope-range-text">RANGE: 250 NM | ELEV: SFC-FL450</span>
                   </div>
                 </div>
               </div>
@@ -1384,6 +1384,9 @@
                 <button id="btn-toggle-grid" onclick="window.toggleLayer('grid')" class="px-2 py-1 text-[11px] rounded bg-obsidian-850 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-950 font-bold">
                   GRID
                 </button>
+                <button id="btn-toggle-satellites" onclick="window.toggleLayer('satellites')" title="Toggle Space-Based ADS-B Satellite Constellation" class="px-2 py-1 text-[11px] rounded bg-obsidian-850 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-950 font-bold">
+                  🛰️ SATS
+                </button>
                 <button id="btn-toggle-sweep" onclick="window.toggleLayer('sweep')" class="px-2 py-1 text-[11px] rounded bg-obsidian-850 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-950 font-bold">
                   SWEEP
                 </button>
@@ -1391,6 +1394,28 @@
                   RECENTER
                 </button>
               </div>
+
+            </div>
+
+            <!-- Global Airspace Scope Selector: Earth | Dubai | Europe | Americas | Asia-Pac -->
+            <div class="flex items-center gap-1.5 px-4 py-1.5 bg-obsidian-950 border-b border-cyan-500/15 overflow-x-auto scrollbar-none z-20 font-mono text-[10px]">
+              <span class="text-cyan-400 font-bold tracking-wider uppercase whitespace-nowrap">AIRSPACE SCOPE:</span>
+              <button id="scope-btn-global" onclick="window.selectAirspaceScope('global-earth')" class="px-2 py-0.5 rounded bg-obsidian-850 hover:bg-cyan-950 border border-slate-800 text-slate-400 hover:text-white whitespace-nowrap transition-all">
+                🌍 GLOBAL EARTH
+              </button>
+              <button id="scope-btn-gulf" onclick="window.selectAirspaceScope('dxb-primary')" class="px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/40 shadow-sm whitespace-nowrap transition-all">
+                🇦🇪 DUBAI & GULF (DXB)
+              </button>
+              <button id="scope-btn-europe" onclick="window.selectAirspaceScope('europe-atlantic')" class="px-2 py-0.5 rounded bg-obsidian-850 hover:bg-cyan-950 border border-slate-800 text-slate-400 hover:text-white whitespace-nowrap transition-all">
+                🇬🇧 EUROPE & NAT (LHR/FRA)
+              </button>
+              <button id="scope-btn-americas" onclick="window.selectAirspaceScope('trans-america')" class="px-2 py-0.5 rounded bg-obsidian-850 hover:bg-cyan-950 border border-slate-800 text-slate-400 hover:text-white whitespace-nowrap transition-all">
+                🇺🇸 AMERICAS (JFK/ORD/LAX)
+              </button>
+              <button id="scope-btn-asiapac" onclick="window.selectAirspaceScope('asia-pacific')" class="px-2 py-0.5 rounded bg-obsidian-850 hover:bg-cyan-950 border border-slate-800 text-slate-400 hover:text-white whitespace-nowrap transition-all">
+                🇸🇬 ASIA-PACIFIC (SIN/HND)
+              </button>
+            </div>
 
             </div>
 
@@ -1428,6 +1453,18 @@
                 <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
                 <span>SIMULATED TRAFFIC — NOT FOR OPERATIONAL USE</span>
                 <span id="radar-track-count" class="px-1.5 py-0.2 rounded bg-amber-900/90 text-amber-100 border border-amber-500/50">14 TRACKS</span>
+              </div>
+
+              <!-- Live Space-Based ADS-B SATCOM Surveillance Uplink HUD -->
+              <div id="radar-satcom-uplink-badge" class="absolute top-11 left-3 z-20 pointer-events-none flex items-center gap-2 px-2.5 py-1 rounded bg-obsidian-950/88 border border-cyan-500/35 text-cyan-300 font-mono text-[9px] backdrop-blur-xs shadow-md">
+                <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping"></span>
+                <span class="font-bold text-white">🛰️ SATCOM: CONNECTED</span>
+                <span class="text-slate-600">|</span>
+                <span class="text-slate-300">IRIDIUM-NEXT LEO SAT-073</span>
+                <span class="text-slate-600">|</span>
+                <span class="text-emerald-400 font-semibold">1090 MHz SPACE-ADS-B</span>
+                <span class="text-slate-600">|</span>
+                <span class="text-cyan-400 font-telemetry">LATENCY: 28ms</span>
               </div>
 
               <!-- Tactical HUD Overlay Crosshairs -->

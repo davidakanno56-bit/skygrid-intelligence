@@ -27,5 +27,6 @@ export interface LayerToggleState {
   trails: boolean;
   sweep: boolean;
   grid: boolean;
+  satellites: boolean;
 }
 

@@ -1679,13 +1679,13 @@
                 <div class="w-2.5 h-2.5 bg-cyan-400 rounded-full animate-ping-radar"></div>
                 <div>
                   <div class="flex items-center space-x-2">
-                    <span class="text-xs font-bold text-white tracking-wider uppercase">DUBAI PRIMARY TACTICAL RADAR</span>
+                    <span id="radar-scope-title" class="text-xs font-bold text-white tracking-wider uppercase">DUBAI & ARABIAN GULF TACTICAL RADAR</span>
                     <span class="text-[10px] bg-cyan-950 text-cyan-300 border border-cyan-700/60 px-1.5 py-0.2 rounded font-semibold">
                       DXB / OMDB
                     </span>
                   </div>
                   <div class="text-[11px] text-cyan-400 font-telemetry tracking-tight">
-                    TARGET: <span class="text-white font-bold">25.2532° N, 55.3657° E</span> | RANGE: 250 NM | ELEV: SFC-FL450
+                    <span id="radar-scope-target-coords">TARGET: 25.2532° N, 55.3657° E</span> | <span id="radar-scope-range-text">RANGE: 250 NM | ELEV: SFC-FL450</span>
                   </div>
                 </div>
               </div>
@@ -1724,6 +1724,9 @@
                 <button id="btn-toggle-grid" onclick="window.toggleLayer('grid')" class="px-2 py-1 text-[11px] rounded bg-obsidian-850 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-950 font-bold">
                   GRID
                 </button>
+                <button id="btn-toggle-satellites" onclick="window.toggleLayer('satellites')" title="Toggle Space-Based ADS-B Satellite Constellation" class="px-2 py-1 text-[11px] rounded bg-obsidian-850 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-950 font-bold">
+                  🛰️ SATS
+                </button>
                 <button id="btn-toggle-sweep" onclick="window.toggleLayer('sweep')" class="px-2 py-1 text-[11px] rounded bg-obsidian-850 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-950 font-bold">
                   SWEEP
                 </button>
@@ -1731,6 +1734,28 @@
                   RECENTER
                 </button>
               </div>
+
+            </div>
+
+            <!-- Global Airspace Scope Selector: Earth | Dubai | Europe | Americas | Asia-Pac -->
+            <div class="flex items-center gap-1.5 px-4 py-1.5 bg-obsidian-950 border-b border-cyan-500/15 overflow-x-auto scrollbar-none z-20 font-mono text-[10px]">
+              <span class="text-cyan-400 font-bold tracking-wider uppercase whitespace-nowrap">AIRSPACE SCOPE:</span>
+              <button id="scope-btn-global" onclick="window.selectAirspaceScope('global-earth')" class="px-2 py-0.5 rounded bg-obsidian-850 hover:bg-cyan-950 border border-slate-800 text-slate-400 hover:text-white whitespace-nowrap transition-all">
+                🌍 GLOBAL EARTH
+              </button>
+              <button id="scope-btn-gulf" onclick="window.selectAirspaceScope('dxb-primary')" class="px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/40 shadow-sm whitespace-nowrap transition-all">
+                🇦🇪 DUBAI & GULF (DXB)
+              </button>
+              <button id="scope-btn-europe" onclick="window.selectAirspaceScope('europe-atlantic')" class="px-2 py-0.5 rounded bg-obsidian-850 hover:bg-cyan-950 border border-slate-800 text-slate-400 hover:text-white whitespace-nowrap transition-all">
+                🇬🇧 EUROPE & NAT (LHR/FRA)
+              </button>
+              <button id="scope-btn-americas" onclick="window.selectAirspaceScope('trans-america')" class="px-2 py-0.5 rounded bg-obsidian-850 hover:bg-cyan-950 border border-slate-800 text-slate-400 hover:text-white whitespace-nowrap transition-all">
+                🇺🇸 AMERICAS (JFK/ORD/LAX)
+              </button>
+              <button id="scope-btn-asiapac" onclick="window.selectAirspaceScope('asia-pacific')" class="px-2 py-0.5 rounded bg-obsidian-850 hover:bg-cyan-950 border border-slate-800 text-slate-400 hover:text-white whitespace-nowrap transition-all">
+                🇸🇬 ASIA-PACIFIC (SIN/HND)
+              </button>
+            </div>
 
             </div>
 
@@ -1768,6 +1793,18 @@
                 <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
                 <span>SIMULATED TRAFFIC — NOT FOR OPERATIONAL USE</span>
                 <span id="radar-track-count" class="px-1.5 py-0.2 rounded bg-amber-900/90 text-amber-100 border border-amber-500/50">14 TRACKS</span>
+              </div>
+
+              <!-- Live Space-Based ADS-B SATCOM Surveillance Uplink HUD -->
+              <div id="radar-satcom-uplink-badge" class="absolute top-11 left-3 z-20 pointer-events-none flex items-center gap-2 px-2.5 py-1 rounded bg-obsidian-950/88 border border-cyan-500/35 text-cyan-300 font-mono text-[9px] backdrop-blur-xs shadow-md">
+                <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping"></span>
+                <span class="font-bold text-white">🛰️ SATCOM: CONNECTED</span>
+                <span class="text-slate-600">|</span>
+                <span class="text-slate-300">IRIDIUM-NEXT LEO SAT-073</span>
+                <span class="text-slate-600">|</span>
+                <span class="text-emerald-400 font-semibold">1090 MHz SPACE-ADS-B</span>
+                <span class="text-slate-600">|</span>
+                <span class="text-cyan-400 font-telemetry">LATENCY: 28ms</span>
               </div>
 
               <!-- Tactical HUD Overlay Crosshairs -->

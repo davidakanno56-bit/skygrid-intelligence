@@ -15,6 +15,7 @@ import {
   buildHazardZonesGeoJSON,
   buildAirspaceOverlayGeoJSON,
   buildTacticalGraticuleGeoJSON,
+  buildSatelliteConstellationGeoJSON,
   advanceSimulatedFlight,
   getRiskTrackColor
 } from './radarUtils';
@@ -88,7 +89,7 @@ export class TacticalRadarEngine {
   private currentSweepAzimuth: number = 184;
   private selectedFlightId: string | null = null;
   private viewMode: '3d' | '2d' = '3d';
-  private layersState: LayerToggleState = { vectors: true, trails: true, sweep: true, grid: true };
+  private layersState: LayerToggleState = { vectors: true, trails: true, sweep: true, grid: true, satellites: true };
 
   constructor(deps: RadarEngineDeps) {
     this.deps = deps;
@@ -332,6 +333,7 @@ export class TacticalRadarEngine {
     if (!this.map || !this.map.isStyleLoaded()) return;
 
     this.addTacticalGraticuleLayer();
+    this.addSatelliteConstellationLayer();
     this.addAirspaceOverlayLayer();
     this.addRangeRingsLayers();
     this.addHazardZonesLayer();
@@ -352,6 +354,67 @@ export class TacticalRadarEngine {
       const sel = this.deps.getFlights().find((f) => f.id === this.selectedFlightId) ?? null;
       this.updateSelectedAircraftPanel(sel);
     }
+  }
+
+  private addSatelliteConstellationLayer(): void {
+    if (!this.map) return;
+    const data = buildSatelliteConstellationGeoJSON();
+    const existing = this.map.getSource('satellite-constellation') as maplibregl.GeoJSONSource | undefined;
+    if (existing) {
+      existing.setData(data);
+      return;
+    }
+    this.map.addSource('satellite-constellation', { type: 'geojson', data });
+
+    this.map.addLayer({
+      id: 'satellite-orbit-tracks-line',
+      type: 'line',
+      source: 'satellite-constellation',
+      filter: ['==', ['get', 'kind'], 'satellite-orbit-track'],
+      paint: {
+        'line-color': ['get', 'color'],
+        'line-width': 1.2,
+        'line-dasharray': [6, 4],
+        'line-opacity': 0.45
+      }
+    });
+
+    this.map.addLayer({
+      id: 'satellite-footprints-line',
+      type: 'line',
+      source: 'satellite-constellation',
+      filter: ['==', ['get', 'kind'], 'satellite-footprint'],
+      paint: {
+        'line-color': ['get', 'color'],
+        'line-width': 1.1,
+        'line-dasharray': [2, 3],
+        'line-opacity': 0.35
+      }
+    });
+
+    this.map.addLayer({
+      id: 'satellite-nodes-halo',
+      type: 'circle',
+      source: 'satellite-constellation',
+      filter: ['==', ['get', 'kind'], 'satellite-node'],
+      paint: {
+        'circle-radius': 8,
+        'circle-color': 'rgba(34, 211, 238, 0.20)',
+        'circle-stroke-color': '#00f0ff',
+        'circle-stroke-width': 1.5
+      }
+    });
+
+    this.map.addLayer({
+      id: 'satellite-nodes-center',
+      type: 'circle',
+      source: 'satellite-constellation',
+      filter: ['==', ['get', 'kind'], 'satellite-node'],
+      paint: {
+        'circle-radius': 3.5,
+        'circle-color': '#ffffff'
+      }
+    });
   }
 
   private addTacticalGraticuleLayer(): void {
@@ -479,15 +542,22 @@ export class TacticalRadarEngine {
     });
 
     const corridorConnections: FlightArcDefinition[] = [
+      { from: 'LHR', to: 'JFK', color: '#38bdf8', callsign: 'BAW-117 (NAT TRACK)' },
+      { from: 'CDG', to: 'DXB', color: '#0ea5e9', callsign: 'AFR-662' },
       { from: 'FRA', to: 'DXB', color: '#0ea5e9', callsign: 'EK-902' },
       { from: 'ORD', to: 'DXB', color: '#0ea5e9', callsign: 'ATLAS-81' },
-      { from: 'LEJ', to: 'DWC', color: '#10b981', callsign: 'DHL-109' },
-      { from: 'SIN', to: 'DXB', color: '#0ea5e9', callsign: 'SQ-77' },
+      { from: 'ORD', to: 'LHR', color: '#38bdf8', callsign: 'UAL-958' },
+      { from: 'DXB', to: 'SIN', color: '#10b981', callsign: 'SIA-322' },
+      { from: 'SIN', to: 'SYD', color: '#10b981', callsign: 'QFA-9' },
+      { from: 'HKG', to: 'LAX', color: '#38bdf8', callsign: 'CPA-888 (TRANSPACIFIC)' },
+      { from: 'HND', to: 'LAX', color: '#10b981', callsign: 'ANA-106' },
+      { from: 'DXB', to: 'JFK', color: '#0ea5e9', callsign: 'UAE-201' },
       { from: 'DOH', to: 'DXB', color: '#10b981', callsign: 'QTR-994' },
       { from: 'HKG', to: 'DWC', color: '#38bdf8', callsign: 'CPA-63' },
       { from: 'SYD', to: 'DXB', color: '#10b981', callsign: 'UAE-9902' },
       { from: 'LUX', to: 'DXB', color: '#38bdf8', callsign: 'CLX-714' },
-      { from: 'LHR', to: 'DXB', color: '#0ea5e9', callsign: 'BAW-208' }
+      { from: 'LHR', to: 'DXB', color: '#0ea5e9', callsign: 'BAW-208' },
+      { from: 'LEJ', to: 'DWC', color: '#10b981', callsign: 'DHL-109' }
     ];
 
     const features = corridorConnections
@@ -855,6 +925,10 @@ export class TacticalRadarEngine {
     setVis('corridor-hazard-fill', this.layersState.sweep);
     setVis('corridor-hazard-line', this.layersState.sweep);
     setVis('tactical-graticule-lines', this.layersState.grid);
+    setVis('satellite-orbit-tracks-line', this.layersState.satellites);
+    setVis('satellite-footprints-line', this.layersState.satellites);
+    setVis('satellite-nodes-halo', this.layersState.satellites);
+    setVis('satellite-nodes-center', this.layersState.satellites);
 
     const hudGrid = document.getElementById('radar-hud-grid-overlay');
     if (hudGrid) {
@@ -898,7 +972,7 @@ export class TacticalRadarEngine {
     }
   }
 
-  public toggleLayer(layer: 'vectors' | 'trails' | 'sweep' | 'grid'): void {
+  public toggleLayer(layer: 'vectors' | 'trails' | 'sweep' | 'grid' | 'satellites'): void {
     this.deps.onPlayClick();
     this.layersState[layer] = !this.layersState[layer];
     this.applyLayerVisibilityState();

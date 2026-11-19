@@ -495,21 +495,75 @@ export function buildAirspaceOverlayGeoJSON(): GeoJSONFeatureCollection {
 
 /**
  * Builds the Tactical Radar Graticule GeoJSON:
- * 1. Latitude parallels every 0.25° (15 NM) across 23.00°N - 27.50°N
- * 2. Longitude meridians every 0.25° (15 NM) across 52.00°E - 57.50°E
- * 3. Major lines every 0.50° (30 NM) highlighted
- * 4. Radial azimuth spokes radiating from OMDB [55.3657, 25.2532] out to 100 NM (185.2 km)
+ * 1. Global World Coordinate Graticule (every 15° across Earth)
+ * 2. High-precision terminal approach graticule (0.25° / 15 NM) across 23.00°N - 27.50°N
+ * 3. Radial azimuth spokes radiating from OMDB [55.3657, 25.2532] out to 100 NM (185.2 km)
  */
 export function buildTacticalGraticuleGeoJSON(): GeoJSONFeatureCollection {
   const features: GeoJSONFeatureCollection['features'] = [];
 
+  // --- 1. GLOBAL WORLD COORDINATE GRATICULE (Earth-Wide) ---
+  // Global Parallels (Latitudes every 15° from -75° to +75°)
+  for (let lat = -75; lat <= 75; lat += 15) {
+    const isEquator = lat === 0;
+    const isTropic = Math.abs(lat) === 30 || Math.abs(lat) === 45;
+    features.push({
+      type: 'Feature',
+      properties: {
+        kind: 'global-graticule-parallel',
+        isMajor: isEquator || isTropic,
+        color: isEquator ? '#00e5ff' : '#0284c7',
+        opacity: isEquator ? 0.80 : 0.45,
+        width: isEquator ? 2.2 : 1.2,
+        label: isEquator ? '0° EQUATOR' : `${Math.abs(lat)}°${lat > 0 ? 'N' : 'S'}`
+      },
+      geometry: {
+        type: 'LineString',
+        coordinates: [
+          [-180, lat],
+          [-90, lat],
+          [0, lat],
+          [90, lat],
+          [180, lat]
+        ]
+      }
+    });
+  }
+
+  // Global Meridians (Longitudes every 15° from -180° to 180°)
+  for (let lng = -180; lng <= 180; lng += 15) {
+    const isPrime = lng === 0;
+    const isMajor = isPrime || Math.abs(lng) === 90 || Math.abs(lng) === 180;
+    features.push({
+      type: 'Feature',
+      properties: {
+        kind: 'global-graticule-meridian',
+        isMajor,
+        color: isPrime ? '#00e5ff' : '#0284c7',
+        opacity: isMajor ? 0.70 : 0.40,
+        width: isMajor ? 1.8 : 1.0,
+        label: isPrime ? '0° PRIME MERIDIAN' : `${Math.abs(lng)}°${lng > 0 ? 'E' : 'W'}`
+      },
+      geometry: {
+        type: 'LineString',
+        coordinates: [
+          [lng, -80],
+          [lng, -40],
+          [lng, 0],
+          [lng, 40],
+          [lng, 80]
+        ]
+      }
+    });
+  }
+
+  // --- 2. HIGH-PRECISION TERMINAL RADAR GRATICULE (0.25° across UAE & Gulf) ---
   const minLat = 23.0;
   const maxLat = 27.5;
   const minLng = 52.0;
   const maxLng = 57.5;
   const step = 0.25;
 
-  // Latitude parallels (horizontal coordinate grid lines)
   for (let lat = minLat; lat <= maxLat + 0.001; lat += step) {
     const roundedLat = Math.round(lat * 100) / 100;
     const isMajor = Math.abs(roundedLat % 0.5) < 0.01;
@@ -533,7 +587,6 @@ export function buildTacticalGraticuleGeoJSON(): GeoJSONFeatureCollection {
     });
   }
 
-  // Longitude meridians (vertical coordinate grid lines)
   for (let lng = minLng; lng <= maxLng + 0.001; lng += step) {
     const roundedLng = Math.round(lng * 100) / 100;
     const isMajor = Math.abs(roundedLng % 0.5) < 0.01;
@@ -578,6 +631,91 @@ export function buildTacticalGraticuleGeoJSON(): GeoJSONFeatureCollection {
       geometry: {
         type: 'LineString',
         coordinates: [omdbCenter, spokeEnd]
+      }
+    });
+  });
+
+  return {
+    type: 'FeatureCollection',
+    features
+  };
+}
+
+/**
+ * Builds the Space-Based ADS-B Surveillance Satellite Constellation GeoJSON:
+ * 1. 6 LEO Polar Orbital Tracks (Iridium-NEXT / Aireon 780 km altitude, 86.4° inclination)
+ * 2. Active orbital satellites with live SATCOM tracking nodes and 1,200 km surveillance footprints
+ */
+export function buildSatelliteConstellationGeoJSON(): GeoJSONFeatureCollection {
+  const features: GeoJSONFeatureCollection['features'] = [];
+
+  // 1. Orbital Ground Tracks (LEO 86.4° Polar Inclination)
+  const orbitalPlanes = [-150, -90, -30, 30, 90, 150];
+  orbitalPlanes.forEach((lngOffset, idx) => {
+    const coords: [number, number][] = [];
+    for (let lat = -80; lat <= 80; lat += 5) {
+      const lng = ((lngOffset + Math.sin((lat * Math.PI) / 90) * 30 + 180) % 360) - 180;
+      coords.push([Number(lng.toFixed(2)), lat]);
+    }
+    features.push({
+      type: 'Feature',
+      properties: {
+        kind: 'satellite-orbit-track',
+        name: `IRIDIUM-NEXT LEO PLANE ${idx + 1}`,
+        color: '#22d3ee',
+        width: 1.2,
+        opacity: 0.45
+      },
+      geometry: {
+        type: 'LineString',
+        coordinates: coords
+      }
+    });
+  });
+
+  // 2. Active Space-Based ADS-B Surveillance Satellites with coverage cones
+  const activeSats = [
+    { id: 'SAT-073', name: 'IRIDIUM-NEXT SAT-073', lng: 55.4, lat: 26.5, sector: 'Middle East & Gulf' },
+    { id: 'SAT-042', name: 'IRIDIUM-NEXT SAT-042', lng: -15.0, lat: 52.0, sector: 'North Atlantic NAT' },
+    { id: 'SAT-129', name: 'IRIDIUM-NEXT SAT-129', lng: -85.0, lat: 40.0, sector: 'North America Continental' },
+    { id: 'SAT-108', name: 'IRIDIUM-NEXT SAT-108', lng: 104.0, lat: 8.0, sector: 'Southeast Asia Gateway' },
+    { id: 'SAT-091', name: 'IRIDIUM-NEXT SAT-091', lng: 12.0, lat: 48.0, sector: 'Central Europe' },
+    { id: 'SAT-115', name: 'IRIDIUM-NEXT SAT-115', lng: -155.0, lat: 25.0, sector: 'Central Pacific' },
+    { id: 'SAT-160', name: 'IRIDIUM-NEXT SAT-160', lng: 75.0, lat: -10.0, sector: 'Indian Ocean Oceanic' }
+  ];
+
+  activeSats.forEach((sat) => {
+    // Satellite point node
+    features.push({
+      type: 'Feature',
+      properties: {
+        kind: 'satellite-node',
+        id: sat.id,
+        name: sat.name,
+        sector: sat.sector,
+        altitudeKm: 780,
+        color: '#00f0ff',
+        status: 'ACTIVE_UPLINK'
+      },
+      geometry: {
+        type: 'Point',
+        coordinates: [sat.lng, sat.lat]
+      }
+    });
+
+    // Surveillance coverage footprint circle (1200 km radius)
+    features.push({
+      type: 'Feature',
+      properties: {
+        kind: 'satellite-footprint',
+        name: `${sat.name} COVERAGE CONE`,
+        color: '#22d3ee',
+        opacity: 0.35,
+        width: 1.2
+      },
+      geometry: {
+        type: 'LineString',
+        coordinates: createRangeRingCoordinates([sat.lng, sat.lat], 1200, 36)
       }
     });
   });

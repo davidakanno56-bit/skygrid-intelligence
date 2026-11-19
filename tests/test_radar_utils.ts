@@ -9,6 +9,7 @@ import {
   buildHazardZonesGeoJSON,
   buildAirspaceOverlayGeoJSON,
   buildTacticalGraticuleGeoJSON,
+  buildSatelliteConstellationGeoJSON,
   advanceSimulatedFlight
 } from '../src/radar/radarUtils.ts';
 import { INITIAL_FLIGHTS } from '../src/data/mockData.ts';
@@ -99,5 +100,15 @@ const spokes = graticule.features.filter((f) => f.properties.kind === 'radial-sp
 assert.ok(parallels.length >= 15, `Expected >= 15 latitude parallels, got ${parallels.length}`);
 assert.ok(meridians.length >= 20, `Expected >= 20 longitude meridians, got ${meridians.length}`);
 assert.equal(spokes.length, 8, `Expected exactly 8 radial azimuth spokes, got ${spokes.length}`);
+
+// 8. Space-based ADS-B satellite constellation (orbit tracks & satellite nodes)
+const satellites = buildSatelliteConstellationGeoJSON();
+assert.ok(satellites.features.length >= 15, `Expected >= 15 satellite features, got ${satellites.features.length}`);
+const orbitTracks = satellites.features.filter((f) => f.properties.kind === 'satellite-orbit-track');
+const satNodes = satellites.features.filter((f) => f.properties.kind === 'satellite-node');
+const footprints = satellites.features.filter((f) => f.properties.kind === 'satellite-footprint');
+assert.equal(orbitTracks.length, 6, 'Must generate exactly 6 LEO polar orbital planes');
+assert.ok(satNodes.length >= 5, 'Must have at least 5 active space surveillance satellites');
+assert.equal(footprints.length, satNodes.length, 'Every satellite must have a coverage footprint');
 
 console.log('ALL FRONTEND RADAR & BASEMAP REGRESSION TESTS PASSED (' + INITIAL_FLIGHTS.length + ' simulated aircraft verified)');

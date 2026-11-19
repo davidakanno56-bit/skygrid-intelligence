@@ -338,29 +338,61 @@ let currentFilter: string = 'all';
 let selectedFlight: FlightVector | null = null;
 const activeApiKey: string = 'sk_demo_skygrid_evaluation_001';
 
-// Strategic Geographic Airport Hub Coordinates
+// Strategic Geographic Airport Hub Coordinates (Global Intercontinental Network)
 const AIRPORT_HUBS: AirportHub[] = [
   { code: 'OMDB / DXB', name: 'Dubai International Mega-Terminal', city: 'Dubai, UAE', coords: [55.3657, 25.2532], isPrimary: true, role: 'Primary Cargo Mega-Terminal & Strategic Hub' },
   { code: 'OMDW / DWC', name: 'Al Maktoum International Logistics', city: 'Jebel Ali, UAE', coords: [55.1614, 24.8967], isPrimary: true, role: 'Logistics Superhub & Dual Runway Sync' },
-  { code: 'OTHH / DOH', name: 'Hamad International', city: 'Doha, Qatar', coords: [51.6080, 25.2731], isPrimary: false, role: 'Gulf Inter-Hub High-Speed Vector' },
-  { code: 'EGLL / LHR', name: 'London Heathrow Cargo Terminal', city: 'London, UK', coords: [-0.4614, 51.4700], isPrimary: false, role: 'Transatlantic Axis Gateway' },
-  { code: 'WSSS / SIN', name: 'Singapore Changi Cargo Hub', city: 'Singapore', coords: [103.9915, 1.3644], isPrimary: false, role: 'Southeast Asia Gateway' },
+  { code: 'KJFK / JFK', name: 'John F. Kennedy International', city: 'New York, USA', coords: [-73.7781, 40.6413], isPrimary: true, role: 'North Atlantic Oceanic Gateway' },
+  { code: 'EGLL / LHR', name: 'London Heathrow Cargo Terminal', city: 'London, UK', coords: [-0.4614, 51.4700], isPrimary: true, role: 'Transatlantic Axis Gateway' },
+  { code: 'WSSS / SIN', name: 'Singapore Changi Cargo Hub', city: 'Singapore', coords: [103.9915, 1.3644], isPrimary: true, role: 'Southeast Asia Intercontinental Hub' },
+  { code: 'RJTT / HND', name: 'Tokyo Haneda International', city: 'Tokyo, Japan', coords: [139.7811, 35.5494], isPrimary: true, role: 'Transpacific Gateway & Asia Hub' },
   { code: 'EDDF / FRA', name: 'Frankfurt CargoCity', city: 'Frankfurt, Germany', coords: [8.5706, 50.0379], isPrimary: false, role: 'European Continental Cargo Hub' },
+  { code: 'LFPG / CDG', name: 'Paris Charles de Gaulle', city: 'Paris, France', coords: [2.5500, 49.0097], isPrimary: false, role: 'Western European Express Axis' },
   { code: 'KORD / ORD', name: 'Chicago O’Hare Intermodal Terminal', city: 'Chicago, USA', coords: [-87.9073, 41.9742], isPrimary: false, role: 'North American Trans-Polar Hub' },
-  { code: 'EDDP / LEJ', name: 'Leipzig/Halle Cargo Hub', city: 'Leipzig, Germany', coords: [12.2364, 51.4239], isPrimary: false, role: 'DHL European Express Superhub' },
+  { code: 'KLAX / LAX', name: 'Los Angeles International', city: 'Los Angeles, USA', coords: [-118.4085, 33.9416], isPrimary: false, role: 'Transpacific West Coast Gateway' },
   { code: 'VHHH / HKG', name: 'Hong Kong SuperTerminal 1', city: 'Hong Kong', coords: [113.9145, 22.3080], isPrimary: false, role: 'Greater Bay Area Pacific Axis' },
+  { code: 'OTHH / DOH', name: 'Hamad International', city: 'Doha, Qatar', coords: [51.6080, 25.2731], isPrimary: false, role: 'Gulf Inter-Hub High-Speed Vector' },
+  { code: 'EDDP / LEJ', name: 'Leipzig/Halle Cargo Hub', city: 'Leipzig, Germany', coords: [12.2364, 51.4239], isPrimary: false, role: 'DHL European Express Superhub' },
   { code: 'ELLX / LUX', name: 'Luxembourg Findel Cargo Hub', city: 'Luxembourg', coords: [6.2158, 49.6233], isPrimary: false, role: 'Cargolux Global Headquarters' },
   { code: 'YSSY / SYD', name: 'Sydney Kingsford Smith', city: 'Sydney, Australia', coords: [151.1772, -33.9461], isPrimary: false, role: 'Trans-Oceanic Southern Axis' }
 ];
 
-// Corridor Camera Orientations (Real Geographic Targets with 3D Pitch: 45)
+// Global Airspace Camera Orientations (Full Earth Globe & Regional Air Corridors)
 const CORRIDOR_CAMERA_TARGETS: Record<string, CorridorCameraPreset> = {
+  'global-earth': {
+    center: [20.0, 22.0],
+    zoom: 1.8,
+    pitch: 28,
+    bearing: 0,
+    duration: 2500
+  },
   'dxb-primary': {
     center: [55.3657, 25.2532],
-    zoom: 9.2,
+    zoom: 9.0,
     pitch: 45,
-    bearing: -20,
+    bearing: -18,
     duration: 2200
+  },
+  'europe-atlantic': {
+    center: [-2.0, 51.0],
+    zoom: 4.4,
+    pitch: 40,
+    bearing: -10,
+    duration: 2400
+  },
+  'trans-america': {
+    center: [-92.0, 39.0],
+    zoom: 3.9,
+    pitch: 38,
+    bearing: 5,
+    duration: 2400
+  },
+  'asia-pacific': {
+    center: [115.0, 16.0],
+    zoom: 3.9,
+    pitch: 40,
+    bearing: -15,
+    duration: 2400
   },
   'doh-dxb': {
     center: [53.5000, 25.3200],
@@ -429,8 +461,69 @@ export function setRadarBasemap(mode: 'live' | 'satellite' | 'dark'): void {
   radarEngine.setBasemap(mode);
 }
 
-export function toggleLayer(layer: 'vectors' | 'trails' | 'sweep' | 'grid'): void {
+export function toggleLayer(layer: 'vectors' | 'trails' | 'sweep' | 'grid' | 'satellites'): void {
   radarEngine.toggleLayer(layer);
+}
+
+export function selectAirspaceScope(scopeKey: string): void {
+  audio.playClick();
+  radarEngine.flyToCorridor(scopeKey);
+
+  const scopeButtons: Record<string, string> = {
+    'global-earth': 'scope-btn-global',
+    'dxb-primary': 'scope-btn-gulf',
+    'europe-atlantic': 'scope-btn-europe',
+    'trans-america': 'scope-btn-americas',
+    'asia-pacific': 'scope-btn-asiapac'
+  };
+
+  const activeClass =
+    'px-2.5 py-1 rounded bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/40 shadow-sm whitespace-nowrap transition-all';
+  const inactiveClass =
+    'px-2.5 py-1 rounded bg-obsidian-850 hover:bg-cyan-950 border border-slate-800 text-slate-400 hover:text-white whitespace-nowrap transition-all';
+
+  Object.entries(scopeButtons).forEach(([key, btnId]) => {
+    const el = document.getElementById(btnId);
+    if (el) el.className = key === scopeKey ? activeClass : inactiveClass;
+  });
+
+  const titles: Record<string, { title: string; target: string; rng: string }> = {
+    'global-earth': {
+      title: 'GLOBAL SOVEREIGN SURVEILLANCE & SPACE-BASED RADAR',
+      target: 'ORBITAL: 0.0000° N, 0.0000° E',
+      rng: 'GLOBAL PLANET-WIDE (TRANS-OCEANIC)'
+    },
+    'dxb-primary': {
+      title: 'DUBAI & ARABIAN GULF TACTICAL RADAR (DXB / OMDB)',
+      target: 'TARGET: 25.2532° N, 55.3657° E',
+      rng: 'RANGE: 250 NM | ELEV: SFC-FL450'
+    },
+    'europe-atlantic': {
+      title: 'EUROPEAN CORE & NORTH ATLANTIC TRACKS (EGLL / EDDF)',
+      target: 'TARGET: 51.4700° N, 0.4543° W',
+      rng: 'RANGE: 850 NM | TRANSATLANTIC AXIS'
+    },
+    'trans-america': {
+      title: 'NORTH AMERICAN INTERMODAL & TRANSPACIFIC (KJFK / KORD)',
+      target: 'TARGET: 40.6413° N, 73.7781° W',
+      rng: 'RANGE: 1200 NM | TRANS-POLAR'
+    },
+    'asia-pacific': {
+      title: 'ASIA-PACIFIC TRANS-OCEANIC AIRSPACE (WSSS / VHHH)',
+      target: 'TARGET: 1.3644° N, 103.9915° E',
+      rng: 'RANGE: 950 NM | EQUATORIAL GATEWAY'
+    }
+  };
+
+  const info = titles[scopeKey];
+  if (info) {
+    const titleEl = document.getElementById('radar-scope-title');
+    const targetEl = document.getElementById('radar-scope-target-coords');
+    const rngEl = document.getElementById('radar-scope-range-text');
+    if (titleEl) titleEl.textContent = info.title;
+    if (targetEl) targetEl.textContent = info.target;
+    if (rngEl) rngEl.textContent = info.rng;
+  }
 }
 
 export function selectRadarAircraft(flightId: string): void {
@@ -1521,6 +1614,7 @@ window.initMapLibreRadar = initMapLibreRadar;
 window.initThreeRadar = initMapLibreRadar;
 window.selectLicensingTier = selectLicensingTier;
 window.handleCorridorChange = handleCorridorChange;
+window.selectAirspaceScope = selectAirspaceScope;
 window.toggleAudioFeedback = toggleAudioFeedback;
 window.setRadarViewMode = setRadarViewMode;
 window.setRadarBasemap = setRadarBasemap;

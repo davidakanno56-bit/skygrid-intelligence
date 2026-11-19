@@ -6,10 +6,11 @@ declare global {
     initThreeRadar: () => void;
     selectLicensingTier: (tier: CommercialTierKey | string) => void;
     handleCorridorChange: (corridorKey: string) => void;
+    selectAirspaceScope: (scopeKey: string) => void;
     toggleAudioFeedback: () => void;
     setRadarViewMode: (mode: '3d' | '2d') => void;
     setRadarBasemap: (mode: 'live' | 'satellite' | 'dark') => void;
-    toggleLayer: (layer: 'vectors' | 'trails' | 'sweep' | 'grid') => void;
+    toggleLayer: (layer: 'vectors' | 'trails' | 'sweep' | 'grid' | 'satellites') => void;
     selectRadarAircraft: (flightId: string) => void;
     closeSelectedAircraftPanel: () => void;
     recenterRadar: (playSound?: boolean) => void;
