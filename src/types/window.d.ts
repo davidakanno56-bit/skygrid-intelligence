@@ -8,7 +8,7 @@ declare global {
     handleCorridorChange: (corridorKey: string) => void;
     toggleAudioFeedback: () => void;
     setRadarViewMode: (mode: '3d' | '2d') => void;
-    toggleLayer: (layer: 'vectors' | 'trails' | 'sweep') => void;
+    toggleLayer: (layer: 'vectors' | 'trails' | 'sweep' | 'grid') => void;
     selectRadarAircraft: (flightId: string) => void;
     closeSelectedAircraftPanel: () => void;
     recenterRadar: (playSound?: boolean) => void;

@@ -8,6 +8,7 @@ import {
   buildHeadingVectorsGeoJSON,
   buildHazardZonesGeoJSON,
   buildAirspaceOverlayGeoJSON,
+  buildTacticalGraticuleGeoJSON,
   advanceSimulatedFlight
 } from '../src/radar/radarUtils.ts';
 import { INITIAL_FLIGHTS } from '../src/data/mockData.ts';
@@ -24,7 +25,7 @@ assert.ok(cartoSource.attribution.includes('CARTO'), 'Must preserve CARTO attrib
 
 // 2. Basemap resolution with & without CARTO key (no fake keys!)
 const withoutKey = resolveTacticalBasemap('');
-assert.equal(withoutKey.provider, 'openfreemap-dark');
+assert.equal(withoutKey.provider, 'esri-dark-gray');
 assert.equal(withoutKey.hasCartoKey, false);
 
 const withKey = resolveTacticalBasemap('valid_carto_token');
@@ -82,5 +83,15 @@ for (let i = 0; i < 35; i++) {
 assert.ok(sample.lat !== startLat || sample.lng !== startLng, 'Simulated aircraft position must update over time');
 assert.equal(sample.isSimulated, true, 'Simulated aircraft must stay flagged isSimulated=true');
 assert.ok(sample.vectorHistory.length <= 20, `vectorHistory must be capped at 20 points, got ${sample.vectorHistory.length}`);
+
+// 7. Tactical radar graticule (coordinate grid lines and radial spokes)
+const graticule = buildTacticalGraticuleGeoJSON();
+assert.ok(graticule.features.length >= 35, `Expected >= 35 graticule grid features, got ${graticule.features.length}`);
+const parallels = graticule.features.filter((f) => f.properties.kind === 'graticule-parallel');
+const meridians = graticule.features.filter((f) => f.properties.kind === 'graticule-meridian');
+const spokes = graticule.features.filter((f) => f.properties.kind === 'radial-spoke');
+assert.ok(parallels.length >= 15, `Expected >= 15 latitude parallels, got ${parallels.length}`);
+assert.ok(meridians.length >= 20, `Expected >= 20 longitude meridians, got ${meridians.length}`);
+assert.equal(spokes.length, 8, `Expected exactly 8 radial azimuth spokes, got ${spokes.length}`);
 
 console.log('ALL FRONTEND RADAR & BASEMAP REGRESSION TESTS PASSED (' + INITIAL_FLIGHTS.length + ' simulated aircraft verified)');

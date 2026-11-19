@@ -425,7 +425,7 @@ export function setRadarViewMode(mode: '3d' | '2d'): void {
   radarEngine.setViewMode(mode);
 }
 
-export function toggleLayer(layer: 'vectors' | 'trails' | 'sweep'): void {
+export function toggleLayer(layer: 'vectors' | 'trails' | 'sweep' | 'grid'): void {
   radarEngine.toggleLayer(layer);
 }
 

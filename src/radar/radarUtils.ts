@@ -6,9 +6,57 @@ export const OPENFREEMAP_DARK_STYLE_URL = 'https://tiles.openfreemap.org/styles/
 export const CARTO_ATTRIBUTION_HTML =
   '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener noreferrer">CARTO</a>';
 
+export const ESRI_ATTRIBUTION_HTML =
+  'Tiles &copy; <a href="https://www.esri.com" target="_blank" rel="noopener noreferrer">Esri</a> &mdash; Esri, DeLorme, NAVTEQ, TomTom';
+
+/**
+ * High-reliability, keyless dark canvas raster basemap style provided by Esri ArcGIS Online.
+ * Requires zero API keys, never watermarks, and provides crisp global dark oceans,
+ * UAE coastlines, Dubai shoreline, international borders, and highway terrain.
+ */
+export const ESRI_DARK_GRAY_RASTER_STYLE: maplibregl.StyleSpecification = {
+  version: 8,
+  sources: {
+    'esri-dark-tiles': {
+      type: 'raster',
+      tiles: [
+        'https://services.arcgisonline.com/arcgis/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}'
+      ],
+      tileSize: 256,
+      attribution: ESRI_ATTRIBUTION_HTML
+    },
+    'esri-dark-reference': {
+      type: 'raster',
+      tiles: [
+        'https://services.arcgisonline.com/arcgis/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}'
+      ],
+      tileSize: 256
+    }
+  },
+  layers: [
+    {
+      id: 'esri-dark-tiles-layer',
+      type: 'raster',
+      source: 'esri-dark-tiles',
+      minzoom: 0,
+      maxzoom: 16
+    },
+    {
+      id: 'esri-dark-reference-layer',
+      type: 'raster',
+      source: 'esri-dark-reference',
+      minzoom: 0,
+      maxzoom: 16,
+      paint: {
+        'raster-opacity': 0.65
+      }
+    }
+  ]
+};
+
 /**
  * Pure dark fallback style used ONLY if external basemap networks fail/offline,
- * ensuring radar overlays, aircraft tracks, trails, and range rings always render.
+ * ensuring radar overlays, aircraft tracks, trails, graticules, and range rings always render.
  */
 export const TACTICAL_OFFLINE_DARK_STYLE: maplibregl.StyleSpecification = {
   version: 8,
@@ -60,7 +108,7 @@ export function buildCartoDarkMatterStyle(apiKey: string): maplibregl.StyleSpeci
 }
 
 export interface BasemapResolution {
-  provider: 'carto-dark-matter' | 'openfreemap-dark';
+  provider: 'carto-dark-matter' | 'esri-dark-gray' | 'openfreemap-dark';
   style: string | maplibregl.StyleSpecification;
   hasCartoKey: boolean;
   label: string;
@@ -68,7 +116,8 @@ export interface BasemapResolution {
 
 /**
  * Selects the authorized CARTO Dark Matter style when VITE_CARTO_BASEMAP_KEY is provided;
- * otherwise uses the authorized keyless OpenFreeMap Dark vector basemap (zero watermarks).
+ * otherwise uses the high-reliability keyless Esri Dark Gray Canvas raster basemap
+ * (zero watermarks, zero font dependencies, instant load across all networks).
  */
 export function resolveTacticalBasemap(cartoApiKey?: string): BasemapResolution {
   const key = (cartoApiKey ?? '').trim();
@@ -81,10 +130,10 @@ export function resolveTacticalBasemap(cartoApiKey?: string): BasemapResolution 
     };
   }
   return {
-    provider: 'openfreemap-dark',
-    style: OPENFREEMAP_DARK_STYLE_URL,
+    provider: 'esri-dark-gray',
+    style: ESRI_DARK_GRAY_RASTER_STYLE,
     hasCartoKey: false,
-    label: 'OPENFREEMAP DARK VECTOR (KEYLESS)'
+    label: 'TACTICAL DARK GRAY CANVAS (KEYLESS)'
   };
 }
 
@@ -344,6 +393,101 @@ export function buildAirspaceOverlayGeoJSON(): GeoJSONFeatureCollection {
         }
       }
     ]
+  };
+}
+
+/**
+ * Builds the Tactical Radar Graticule GeoJSON:
+ * 1. Latitude parallels every 0.25° (15 NM) across 23.00°N - 27.50°N
+ * 2. Longitude meridians every 0.25° (15 NM) across 52.00°E - 57.50°E
+ * 3. Major lines every 0.50° (30 NM) highlighted
+ * 4. Radial azimuth spokes radiating from OMDB [55.3657, 25.2532] out to 100 NM (185.2 km)
+ */
+export function buildTacticalGraticuleGeoJSON(): GeoJSONFeatureCollection {
+  const features: GeoJSONFeatureCollection['features'] = [];
+
+  const minLat = 23.0;
+  const maxLat = 27.5;
+  const minLng = 52.0;
+  const maxLng = 57.5;
+  const step = 0.25;
+
+  // Latitude parallels (horizontal coordinate grid lines)
+  for (let lat = minLat; lat <= maxLat + 0.001; lat += step) {
+    const roundedLat = Math.round(lat * 100) / 100;
+    const isMajor = Math.abs(roundedLat % 0.5) < 0.01;
+    features.push({
+      type: 'Feature',
+      properties: {
+        kind: 'graticule-parallel',
+        isMajor,
+        color: isMajor ? '#22d3ee' : '#0891b2',
+        opacity: isMajor ? 0.38 : 0.18,
+        width: isMajor ? 1.2 : 0.75,
+        label: `${roundedLat.toFixed(2)}°N`
+      },
+      geometry: {
+        type: 'LineString',
+        coordinates: [
+          [minLng, roundedLat],
+          [maxLng, roundedLat]
+        ]
+      }
+    });
+  }
+
+  // Longitude meridians (vertical coordinate grid lines)
+  for (let lng = minLng; lng <= maxLng + 0.001; lng += step) {
+    const roundedLng = Math.round(lng * 100) / 100;
+    const isMajor = Math.abs(roundedLng % 0.5) < 0.01;
+    features.push({
+      type: 'Feature',
+      properties: {
+        kind: 'graticule-meridian',
+        isMajor,
+        color: isMajor ? '#22d3ee' : '#0891b2',
+        opacity: isMajor ? 0.38 : 0.18,
+        width: isMajor ? 1.2 : 0.75,
+        label: `${roundedLng.toFixed(2)}°E`
+      },
+      geometry: {
+        type: 'LineString',
+        coordinates: [
+          [roundedLng, minLat],
+          [roundedLng, maxLat]
+        ]
+      }
+    });
+  }
+
+  // Radial azimuth spokes radiating from OMDB center
+  const omdbCenter: [number, number] = [55.3657, 25.2532];
+  const radialBearings = [0, 45, 90, 135, 180, 225, 270, 315];
+  const maxRangeKm = 185.2; // 100 NM
+
+  radialBearings.forEach((brg) => {
+    const spokeEnd = projectPointAlongHeading(omdbCenter[0], omdbCenter[1], brg, maxRangeKm);
+    const isCardinal = brg % 90 === 0;
+    features.push({
+      type: 'Feature',
+      properties: {
+        kind: 'radial-spoke',
+        isMajor: isCardinal,
+        color: isCardinal ? '#38bdf8' : '#06b6d4',
+        opacity: isCardinal ? 0.35 : 0.20,
+        width: isCardinal ? 1.2 : 0.8,
+        bearing: brg
+      },
+      geometry: {
+        type: 'LineString',
+        coordinates: [omdbCenter, spokeEnd]
+      }
+    });
+  });
+
+  return {
+    type: 'FeatureCollection',
+    features
   };
 }
 

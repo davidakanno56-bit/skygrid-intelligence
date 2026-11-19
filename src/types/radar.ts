@@ -26,5 +26,6 @@ export interface LayerToggleState {
   vectors: boolean;
   trails: boolean;
   sweep: boolean;
+  grid: boolean;
 }
 

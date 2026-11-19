@@ -1708,6 +1708,9 @@
                 <button id="btn-toggle-trails" onclick="window.toggleLayer('trails')" class="px-2 py-1 text-[11px] rounded bg-obsidian-850 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-950 font-bold">
                   TRAILS
                 </button>
+                <button id="btn-toggle-grid" onclick="window.toggleLayer('grid')" class="px-2 py-1 text-[11px] rounded bg-obsidian-850 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-950 font-bold">
+                  GRID
+                </button>
                 <button id="btn-toggle-sweep" onclick="window.toggleLayer('sweep')" class="px-2 py-1 text-[11px] rounded bg-obsidian-850 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-950 font-bold">
                   SWEEP
                 </button>
@@ -1719,7 +1722,7 @@
             </div>
 
             <!-- MAPLIBRE GL JS REAL GEOGRAPHIC VECTOR RADAR & TACTICAL HUD -->
-            <div id="radar-canvas-container" class="relative flex-1 w-full min-h-[360px] bg-[#02050b] overflow-hidden">
+            <div id="radar-canvas-container" class="relative flex-1 w-full min-h-[360px] bg-[#02050b] bg-tactical-grid overflow-hidden">
               
               <!-- Real Geographic MapLibre Vector Map Canvas -->
               <div id="tactical-map-container" class="absolute inset-0 w-full h-full"></div>
@@ -1743,6 +1746,12 @@
 
               <!-- Tactical HUD Overlay Crosshairs -->
               <div class="absolute inset-0 pointer-events-none z-10">
+                <!-- Tactical HUD Corner Bracket Crosshairs & Scope Reticle -->
+                <div class="absolute top-2 left-2 text-[10px] font-mono text-cyan-500/40 select-none pointer-events-none tracking-widest">+ 25°45'N / 54°30'E [GRID-NW]</div>
+                <div class="absolute top-2 right-2 text-[10px] font-mono text-cyan-500/40 select-none pointer-events-none tracking-widest">[GRID-NE] + 25°45'N / 56°15'E</div>
+                <div class="absolute bottom-2 left-2 text-[10px] font-mono text-cyan-500/40 select-none pointer-events-none tracking-widest">+ 24°30'N / 54°30'E [GRID-SW]</div>
+                <div class="absolute bottom-2 right-2 text-[10px] font-mono text-cyan-500/40 select-none pointer-events-none tracking-widest">[GRID-SE] + 24°30'N / 56°15'E</div>
+
                 <!-- Range Ring Distance Markers & Basemap Status -->
                 <div class="absolute bottom-8 left-3 text-[10px] font-mono text-cyan-400/85 bg-obsidian-950/75 border border-cyan-500/20 rounded px-2.5 py-1.5 space-y-0.5 backdrop-blur-xs">
                   <div>RNG RINGS: 25NM / 50NM / 100NM (OMDB CENTER)</div>
@@ -1750,6 +1759,7 @@
                   <div class="flex items-center gap-3 text-[9px]">
                     <span class="flex items-center gap-1"><span class="w-2 h-0.5 bg-cyan-400 inline-block"></span>TRACKS</span>
                     <span class="flex items-center gap-1"><span class="w-2 h-0.5 bg-amber-400 inline-block"></span>HAZARD ZONE</span>
+                    <span class="flex items-center gap-1 text-cyan-300 font-semibold"><span class="w-2 h-0.5 bg-cyan-300 inline-block"></span>0.25° GRATICULE GRID</span>
                     <span>PITCH: <span id="radar-pitch-display" class="text-cyan-300 font-bold">45°</span> | BRG: <span id="radar-bearing-display" class="text-cyan-300 font-bold">-20°</span></span>
                   </div>
                 </div>

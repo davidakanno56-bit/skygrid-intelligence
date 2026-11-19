@@ -10,11 +10,12 @@ import {
   buildHeadingVectorsGeoJSON,
   buildHazardZonesGeoJSON,
   buildAirspaceOverlayGeoJSON,
+  buildTacticalGraticuleGeoJSON,
   advanceSimulatedFlight,
   getRiskTrackColor
 } from './radarUtils';
 
-// Authorized CARTO Dark Matter (when VITE_CARTO_BASEMAP_KEY is configured) or Keyless OpenFreeMap Dark Vector Basemap
+// Authorized CARTO Dark Matter (when VITE_CARTO_BASEMAP_KEY is configured) or Keyless Tactical Dark Canvas (Esri)
 const BASEMAP_RESOLUTION = resolveTacticalBasemap(import.meta.env.VITE_CARTO_BASEMAP_KEY as string | undefined);
 export const TACTICAL_DARK_BASEMAP_STYLE = BASEMAP_RESOLUTION.style;
 
@@ -83,7 +84,7 @@ export class TacticalRadarEngine {
   private currentSweepAzimuth: number = 184;
   private selectedFlightId: string | null = null;
   private viewMode: '3d' | '2d' = '3d';
-  private layersState: LayerToggleState = { vectors: true, trails: true, sweep: true };
+  private layersState: LayerToggleState = { vectors: true, trails: true, sweep: true, grid: true };
 
   constructor(deps: RadarEngineDeps) {
     this.deps = deps;
@@ -302,23 +303,19 @@ export class TacticalRadarEngine {
       // Never allow an unreachable basemap network to block radar overlays indefinitely
       this.styleFallbackTimer = setTimeout(() => {
         if (!this.mapInitialized && this.map && !this.usingOfflineFallbackStyle) {
+          console.warn('[RADAR ENGINE] Basemap load timeout after 12s, switching to tactical offline grid mode');
           this.usingOfflineFallbackStyle = true;
-          this.updateBasemapStatus('TACTICAL DARK GRID (OFFLINE FALLBACK)');
+          this.updateBasemapStatus('TACTICAL RADAR GRID (OFFLINE)');
           try {
             this.map.setStyle(TACTICAL_OFFLINE_DARK_STYLE);
           } catch {}
         }
-      }, 4500);
+      }, 12000);
 
       this.map.on('error', (e: unknown) => {
-        console.warn('[MAPLIBRE WARNING]', e);
-        if (!this.mapInitialized && this.map && !this.usingOfflineFallbackStyle) {
-          this.usingOfflineFallbackStyle = true;
-          this.updateBasemapStatus('TACTICAL DARK GRID (FALLBACK)');
-          try {
-            this.map.setStyle(TACTICAL_OFFLINE_DARK_STYLE);
-          } catch {}
-        }
+        // MapLibre emits non-fatal warnings for minor network retries, missing optional glyphs, etc.
+        // DO NOT wipe or abort the basemap on non-fatal events!
+        console.warn('[MAPLIBRE NON-FATAL WARNING]', e);
       });
     } catch (err) {
       this.mapInitializing = false;
@@ -330,6 +327,7 @@ export class TacticalRadarEngine {
   public ensureRadarOverlays(): void {
     if (!this.map || !this.map.isStyleLoaded()) return;
 
+    this.addTacticalGraticuleLayer();
     this.addAirspaceOverlayLayer();
     this.addRangeRingsLayers();
     this.addHazardZonesLayer();
@@ -350,6 +348,28 @@ export class TacticalRadarEngine {
       const sel = this.deps.getFlights().find((f) => f.id === this.selectedFlightId) ?? null;
       this.updateSelectedAircraftPanel(sel);
     }
+  }
+
+  private addTacticalGraticuleLayer(): void {
+    if (!this.map) return;
+    const data = buildTacticalGraticuleGeoJSON();
+    const existing = this.map.getSource('tactical-graticule') as maplibregl.GeoJSONSource | undefined;
+    if (existing) {
+      existing.setData(data);
+      return;
+    }
+    this.map.addSource('tactical-graticule', { type: 'geojson', data });
+    this.map.addLayer({
+      id: 'tactical-graticule-lines',
+      type: 'line',
+      source: 'tactical-graticule',
+      paint: {
+        'line-color': ['get', 'color'],
+        'line-width': ['get', 'width'],
+        'line-dasharray': [3, 4],
+        'line-opacity': ['get', 'opacity']
+      }
+    });
   }
 
   private addAirspaceOverlayLayer(): void {
@@ -830,9 +850,10 @@ export class TacticalRadarEngine {
     setVis('dxb-airspace-tma-line', this.layersState.sweep);
     setVis('corridor-hazard-fill', this.layersState.sweep);
     setVis('corridor-hazard-line', this.layersState.sweep);
+    setVis('tactical-graticule-lines', this.layersState.grid);
   }
 
-  public toggleLayer(layer: 'vectors' | 'trails' | 'sweep'): void {
+  public toggleLayer(layer: 'vectors' | 'trails' | 'sweep' | 'grid'): void {
     this.deps.onPlayClick();
     this.layersState[layer] = !this.layersState[layer];
     this.applyLayerVisibilityState();
