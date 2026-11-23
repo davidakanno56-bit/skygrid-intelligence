@@ -1,5 +1,5 @@
 import * as maplibregl from 'maplibre-gl';
-import type { FlightVector } from '../types/telemetry';
+import type { FlightVector, ConflictPrediction4D } from '../types/telemetry';
 import type { AirportHub, CorridorCameraPreset, FlightArcDefinition, LayerToggleState } from '../types/radar';
 import {
   resolveTacticalBasemap,
@@ -16,6 +16,11 @@ import {
   buildAirspaceOverlayGeoJSON,
   buildTacticalGraticuleGeoJSON,
   buildSatelliteConstellationGeoJSON,
+  buildGpsInterferenceZonesGeoJSON,
+  buildSpaceLaunchCorridorsGeoJSON,
+  detect4DTrajectoryConflicts,
+  buildConflictPredictionVectorsGeoJSON,
+  getLiveSensorFusionMetrics,
   advanceSimulatedFlight,
   getRiskTrackColor
 } from './radarUtils';
@@ -89,7 +94,17 @@ export class TacticalRadarEngine {
   private currentSweepAzimuth: number = 184;
   private selectedFlightId: string | null = null;
   private viewMode: '3d' | '2d' = '3d';
-  private layersState: LayerToggleState = { vectors: true, trails: true, sweep: true, grid: true, satellites: true };
+  private layersState: LayerToggleState = {
+    vectors: true,
+    trails: true,
+    sweep: true,
+    grid: true,
+    satellites: true,
+    fusion: true,
+    deconfliction: true,
+    gpsSpoofing: true,
+    spaceLaunch: true
+  };
 
   constructor(deps: RadarEngineDeps) {
     this.deps = deps;
@@ -334,15 +349,20 @@ export class TacticalRadarEngine {
 
     this.addTacticalGraticuleLayer();
     this.addSatelliteConstellationLayer();
+    this.addGpsInterferenceLayers();
+    this.addSpaceLaunchLayers();
+    this.addDeconflictionLayers();
     this.addAirspaceOverlayLayer();
     this.addRangeRingsLayers();
     this.addHazardZonesLayer();
     this.addFlightPathArcLayers();
     this.syncAircraftTrackLayers();
+    this.syncDeconflictionLayers();
     this.renderHubBeaconMarkers();
     this.renderMovingAircraftMarkers();
     this.applyLayerVisibilityState();
     this.updateTrackCount();
+    this.updateSensorFusionHUD();
   }
 
   public syncFlights(): void {
@@ -437,6 +457,282 @@ export class TacticalRadarEngine {
         'line-opacity': ['get', 'opacity']
       }
     });
+  }
+
+  private addGpsInterferenceLayers(): void {
+    if (!this.map) return;
+    const data = buildGpsInterferenceZonesGeoJSON();
+    const existing = this.map.getSource('gps-interference-zones') as maplibregl.GeoJSONSource | undefined;
+    if (existing) {
+      existing.setData(data);
+      return;
+    }
+    this.map.addSource('gps-interference-zones', { type: 'geojson', data });
+
+    this.map.addLayer({
+      id: 'gps-interference-zone-fill',
+      type: 'fill',
+      source: 'gps-interference-zones',
+      filter: ['==', ['get', 'kind'], 'gps-interference-hazard-zone'],
+      paint: {
+        'fill-color': ['get', 'fillColor'],
+        'fill-opacity': 0.18
+      }
+    });
+
+    this.map.addLayer({
+      id: 'gps-interference-zone-line',
+      type: 'line',
+      source: 'gps-interference-zones',
+      filter: ['==', ['get', 'kind'], 'gps-interference-hazard-zone'],
+      paint: {
+        'line-color': ['get', 'lineColor'],
+        'line-width': ['get', 'lineWidth'],
+        'line-dasharray': [4, 2],
+        'line-opacity': 0.85
+      }
+    });
+
+    this.map.addLayer({
+      id: 'gps-threat-beacon-circle',
+      type: 'circle',
+      source: 'gps-interference-zones',
+      filter: ['==', ['get', 'kind'], 'gps-threat-beacon'],
+      paint: {
+        'circle-radius': 6,
+        'circle-color': ['get', 'color'],
+        'circle-stroke-color': '#ffffff',
+        'circle-stroke-width': 1.5,
+        'circle-opacity': 0.9
+      }
+    });
+  }
+
+  private addSpaceLaunchLayers(): void {
+    if (!this.map) return;
+    const data = buildSpaceLaunchCorridorsGeoJSON();
+    const existing = this.map.getSource('space-launch-corridors') as maplibregl.GeoJSONSource | undefined;
+    if (existing) {
+      existing.setData(data);
+      return;
+    }
+    this.map.addSource('space-launch-corridors', { type: 'geojson', data });
+
+    this.map.addLayer({
+      id: 'space-quarantine-fill',
+      type: 'fill',
+      source: 'space-launch-corridors',
+      filter: ['==', ['get', 'kind'], 'space-quarantine-envelope'],
+      paint: {
+        'fill-color': ['get', 'fillColor'],
+        'fill-opacity': 0.16
+      }
+    });
+
+    this.map.addLayer({
+      id: 'space-quarantine-line',
+      type: 'line',
+      source: 'space-launch-corridors',
+      filter: ['==', ['get', 'kind'], 'space-quarantine-envelope'],
+      paint: {
+        'line-color': ['get', 'lineColor'],
+        'line-width': ['get', 'lineWidth'],
+        'line-dasharray': [5, 3],
+        'line-opacity': 0.85
+      }
+    });
+
+    this.map.addLayer({
+      id: 'space-launch-glow',
+      type: 'line',
+      source: 'space-launch-corridors',
+      filter: ['==', ['get', 'kind'], 'space-launch-trajectory'],
+      paint: {
+        'line-color': ['get', 'glowColor'],
+        'line-width': 6.0,
+        'line-opacity': 0.35,
+        'line-blur': 3.0
+      }
+    });
+
+    this.map.addLayer({
+      id: 'space-launch-line',
+      type: 'line',
+      source: 'space-launch-corridors',
+      filter: ['==', ['get', 'kind'], 'space-launch-trajectory'],
+      paint: {
+        'line-color': ['get', 'color'],
+        'line-width': ['get', 'width'],
+        'line-opacity': 0.95
+      }
+    });
+
+    this.map.addLayer({
+      id: 'spaceport-launch-pad-beacon',
+      type: 'circle',
+      source: 'space-launch-corridors',
+      filter: ['==', ['get', 'kind'], 'spaceport-launch-pad'],
+      paint: {
+        'circle-radius': 7,
+        'circle-color': '#c084fc',
+        'circle-stroke-color': '#ffffff',
+        'circle-stroke-width': 1.8
+      }
+    });
+  }
+
+  private addDeconflictionLayers(): void {
+    if (!this.map) return;
+    const flights = this.deps.getFlights();
+    const conflicts = detect4DTrajectoryConflicts(flights);
+    const data = buildConflictPredictionVectorsGeoJSON(conflicts, flights);
+
+    const existing = this.map.getSource('conflict-deconfliction-vectors') as maplibregl.GeoJSONSource | undefined;
+    if (existing) {
+      existing.setData(data);
+      return;
+    }
+    this.map.addSource('conflict-deconfliction-vectors', { type: 'geojson', data });
+
+    this.map.addLayer({
+      id: 'conflict-intersect-chord-line',
+      type: 'line',
+      source: 'conflict-deconfliction-vectors',
+      filter: ['==', ['get', 'kind'], 'conflict-intersect-chord'],
+      paint: {
+        'line-color': ['get', 'color'],
+        'line-width': ['get', 'width'],
+        'line-opacity': ['get', 'opacity'],
+        'line-dasharray': [3, 2]
+      }
+    });
+
+    this.map.addLayer({
+      id: 'loss-of-separation-bubble-fill',
+      type: 'fill',
+      source: 'conflict-deconfliction-vectors',
+      filter: ['==', ['get', 'kind'], 'loss-of-separation-bubble'],
+      paint: {
+        'fill-color': ['get', 'fillColor'],
+        'fill-opacity': 0.22
+      }
+    });
+
+    this.map.addLayer({
+      id: 'loss-of-separation-bubble-line',
+      type: 'line',
+      source: 'conflict-deconfliction-vectors',
+      filter: ['==', ['get', 'kind'], 'loss-of-separation-bubble'],
+      paint: {
+        'line-color': ['get', 'lineColor'],
+        'line-width': ['get', 'lineWidth'],
+        'line-opacity': 0.95
+      }
+    });
+
+    this.map.addLayer({
+      id: 'resolution-advisory-trajectory-line',
+      type: 'line',
+      source: 'conflict-deconfliction-vectors',
+      filter: ['==', ['get', 'kind'], 'resolution-advisory-trajectory'],
+      paint: {
+        'line-color': ['get', 'color'],
+        'line-width': ['get', 'width'],
+        'line-opacity': ['get', 'opacity'],
+        'line-dasharray': [4, 2]
+      }
+    });
+  }
+
+  public syncDeconflictionLayers(): void {
+    if (!this.map || !this.map.isStyleLoaded()) return;
+    const flights = this.deps.getFlights();
+    const conflicts = detect4DTrajectoryConflicts(flights);
+    const data = buildConflictPredictionVectorsGeoJSON(conflicts, flights);
+    const src = this.map.getSource('conflict-deconfliction-vectors') as maplibregl.GeoJSONSource | undefined;
+    if (src) {
+      src.setData(data);
+    }
+    this.updateDeconflictionHUD(conflicts);
+  }
+
+  public updateSensorFusionHUD(): void {
+    const metrics = getLiveSensorFusionMetrics();
+    const scoreEl = document.getElementById('hud-sensor-fusion-score');
+    if (scoreEl) scoreEl.textContent = `${metrics.confidenceScore.toFixed(1)}% FUSED LOCK`;
+    const latEl = document.getElementById('hud-sensor-fusion-latency');
+    if (latEl) latEl.textContent = `${metrics.latencyMs.toFixed(1)}ms EDGE`;
+    const qEl = document.getElementById('hud-quantum-channel');
+    if (qEl) qEl.textContent = `${metrics.quantumResistantChannel} SECURE`;
+  }
+
+  public updateDeconflictionHUD(conflicts?: ConflictPrediction4D[]): void {
+    const list = conflicts ?? detect4DTrajectoryConflicts(this.deps.getFlights());
+    const barEl = document.getElementById('hud-conflict-alert-bar');
+    const detailsEl = document.getElementById('hud-conflict-details');
+    const btnEl = document.getElementById('hud-conflict-btn');
+
+    if (!barEl || !detailsEl) return;
+
+    if (list.length > 0) {
+      const top = list[0]!;
+      barEl.classList.remove('hidden');
+      const ra = top.resolutionAdvisory;
+      detailsEl.innerHTML = `
+        <span class="text-rose-400 font-bold animate-pulse">⚠️ 4D CONFLICT: ${top.flightACallsign} &amp; ${top.flightBCallsign}</span>
+        <span class="text-slate-400">| CPA: <span class="text-white font-mono">${top.timeToCpaSeconds}s</span></span>
+        <span class="text-slate-400">| Sep: <span class="text-rose-300 font-mono">${top.predictedDistanceNm} NM</span></span>
+        <span class="text-emerald-400 font-bold ml-1">RA: ${ra.targetFlight} ${ra.action} ${ra.clearedAltitude ?? ''} (HDG ${ra.clearedHeading}°)</span>
+      `;
+      if (btnEl) {
+        btnEl.dataset.conflictId = top.conflictId;
+        btnEl.dataset.targetCallsign = ra.targetFlight;
+      }
+    } else {
+      barEl.classList.add('hidden');
+    }
+  }
+
+  public executeAiDeconflictionManeuver(conflictId?: string): void {
+    this.deps.onPlayClick();
+    const flights = this.deps.getFlights();
+    const conflicts = detect4DTrajectoryConflicts(flights);
+    const targetConflict = conflictId ? conflicts.find((c) => c.conflictId === conflictId) ?? conflicts[0] : conflicts[0];
+
+    if (!targetConflict) return;
+
+    const targetFlight = flights.find((f) => f.callsign === targetConflict.resolutionAdvisory.targetFlight);
+    if (targetFlight) {
+      targetFlight.heading = targetConflict.resolutionAdvisory.clearedHeading ?? (targetFlight.heading + 25) % 360;
+      targetFlight.altitude = 38000;
+      targetFlight.flightLevel = 'FL380';
+      targetFlight.status = 'Vector Corrected';
+      targetFlight.riskScore = 2.4;
+      targetFlight.riskCategory = 'minimal';
+    }
+
+    // Refresh markers & tracks
+    this.syncAircraftTrackLayers();
+    this.renderMovingAircraftMarkers();
+    this.syncDeconflictionLayers();
+
+    // Show on-screen toast
+    const toast = document.createElement('div');
+    toast.className =
+      'fixed bottom-8 right-8 z-50 bg-emerald-950/95 border border-emerald-500/60 text-emerald-200 px-4 py-3 rounded-lg shadow-2xl backdrop-blur-md flex items-center space-x-3 transition-all duration-300 transform translate-y-0 opacity-100 font-mono text-xs';
+    toast.innerHTML = `
+      <div class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></div>
+      <div>
+        <div class="font-bold text-white text-[13px]">AUTONOMOUS 4D RESOLUTION DISPATCHED</div>
+        <div class="text-emerald-300/90 text-[11px] mt-0.5">Cleared ${targetConflict.resolutionAdvisory.targetFlight} to FL380, heading ${targetConflict.resolutionAdvisory.clearedHeading}°. Separation restored: +${targetConflict.resolutionAdvisory.separationRestoredNm} NM.</div>
+      </div>
+    `;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateY(10px)';
+      setTimeout(() => toast.remove(), 400);
+    }, 4500);
   }
 
   private addAirspaceOverlayLayer(): void {
@@ -879,6 +1175,8 @@ export class TacticalRadarEngine {
       });
 
       this.syncAircraftTrackLayers();
+      this.syncDeconflictionLayers();
+      this.updateSensorFusionHUD();
 
       if (this.selectedFlightId) {
         const sel = flights.find((f) => f.id === this.selectedFlightId) ?? null;
@@ -930,6 +1228,21 @@ export class TacticalRadarEngine {
     setVis('satellite-nodes-halo', this.layersState.satellites);
     setVis('satellite-nodes-center', this.layersState.satellites);
 
+    setVis('gps-interference-zone-fill', this.layersState.gpsSpoofing);
+    setVis('gps-interference-zone-line', this.layersState.gpsSpoofing);
+    setVis('gps-threat-beacon-circle', this.layersState.gpsSpoofing);
+
+    setVis('space-quarantine-fill', this.layersState.spaceLaunch);
+    setVis('space-quarantine-line', this.layersState.spaceLaunch);
+    setVis('space-launch-glow', this.layersState.spaceLaunch);
+    setVis('space-launch-line', this.layersState.spaceLaunch);
+    setVis('spaceport-launch-pad-beacon', this.layersState.spaceLaunch);
+
+    setVis('conflict-intersect-chord-line', this.layersState.deconfliction);
+    setVis('loss-of-separation-bubble-fill', this.layersState.deconfliction);
+    setVis('loss-of-separation-bubble-line', this.layersState.deconfliction);
+    setVis('resolution-advisory-trajectory-line', this.layersState.deconfliction);
+
     const hudGrid = document.getElementById('radar-hud-grid-overlay');
     if (hudGrid) {
       hudGrid.style.display = this.layersState.grid ? 'block' : 'none';
@@ -972,7 +1285,7 @@ export class TacticalRadarEngine {
     }
   }
 
-  public toggleLayer(layer: 'vectors' | 'trails' | 'sweep' | 'grid' | 'satellites'): void {
+  public toggleLayer(layer: keyof LayerToggleState): void {
     this.deps.onPlayClick();
     this.layersState[layer] = !this.layersState[layer];
     this.applyLayerVisibilityState();

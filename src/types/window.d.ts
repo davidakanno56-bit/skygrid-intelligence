@@ -10,7 +10,11 @@ declare global {
     toggleAudioFeedback: () => void;
     setRadarViewMode: (mode: '3d' | '2d') => void;
     setRadarBasemap: (mode: 'live' | 'satellite' | 'dark') => void;
-    toggleLayer: (layer: 'vectors' | 'trails' | 'sweep' | 'grid' | 'satellites') => void;
+    toggleLayer: (layer: 'vectors' | 'trails' | 'sweep' | 'grid' | 'satellites' | 'fusion' | 'deconfliction' | 'gpsSpoofing' | 'spaceLaunch') => void;
+    executeAiDeconflictionManeuver: (conflictId?: string) => void;
+    openElectronicFlightStripsModal: () => void;
+    closeElectronicFlightStripsModal: () => void;
+    executeStripVectorClearance: (callsign: string, action: string) => void;
     selectRadarAircraft: (flightId: string) => void;
     closeSelectedAircraftPanel: () => void;
     recenterRadar: (playSound?: boolean) => void;

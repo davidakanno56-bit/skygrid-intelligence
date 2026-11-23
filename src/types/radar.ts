@@ -28,5 +28,9 @@ export interface LayerToggleState {
   sweep: boolean;
   grid: boolean;
   satellites: boolean;
+  fusion: boolean;
+  deconfliction: boolean;
+  gpsSpoofing: boolean;
+  spaceLaunch: boolean;
 }
 

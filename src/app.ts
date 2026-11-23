@@ -461,8 +461,15 @@ export function setRadarBasemap(mode: 'live' | 'satellite' | 'dark'): void {
   radarEngine.setBasemap(mode);
 }
 
-export function toggleLayer(layer: 'vectors' | 'trails' | 'sweep' | 'grid' | 'satellites'): void {
+export function toggleLayer(
+  layer: 'vectors' | 'trails' | 'sweep' | 'grid' | 'satellites' | 'fusion' | 'deconfliction' | 'gpsSpoofing' | 'spaceLaunch'
+): void {
   radarEngine.toggleLayer(layer);
+}
+
+export function executeAiDeconflictionManeuver(conflictId?: string): void {
+  audio.playDirectiveChime();
+  radarEngine.executeAiDeconflictionManeuver(conflictId);
 }
 
 export function selectAirspaceScope(scopeKey: string): void {
@@ -935,6 +942,115 @@ export function triggerDeconflictSimulation(): void {
   setTimeout(() => {
     simBanner?.classList.add('hidden');
   }, 10000);
+}
+
+// ==================== ELECTRONIC FLIGHT STRIP BAY (EFS) ====================
+
+export function openElectronicFlightStripsModal(): void {
+  audio.playClick();
+  renderElectronicFlightStrips();
+  const modal = document.getElementById('efs-modal');
+  modal?.classList.remove('hidden');
+}
+
+export function closeElectronicFlightStripsModal(): void {
+  audio.playClick();
+  const modal = document.getElementById('efs-modal');
+  modal?.classList.add('hidden');
+}
+
+export function executeStripVectorClearance(callsign: string, action: string): void {
+  audio.playClick();
+  const flight = FLIGHTS_DATA.find((f) => f.callsign === callsign);
+  if (!flight) return;
+
+  if (action === 'CLIMB_FL390') {
+    flight.altitude = 39000;
+    flight.flightLevel = 'FL390';
+    flight.status = 'Vector Corrected';
+  } else if (action === 'DESCEND_FL340') {
+    flight.altitude = 34000;
+    flight.flightLevel = 'FL340';
+    flight.status = 'Vector Corrected';
+  } else if (action === 'HDG_RIGHT_15') {
+    flight.heading = (flight.heading + 15) % 360;
+    flight.status = 'Vector Corrected';
+  } else if (action === 'DECONFLICT') {
+    flight.heading = (flight.heading + 25) % 360;
+    flight.altitude = 38000;
+    flight.flightLevel = 'FL380';
+    flight.riskScore = 3.2;
+    flight.riskCategory = 'minimal';
+    flight.status = 'Vector Corrected';
+  }
+
+  renderFlightFeed();
+  radarEngine.syncFlights();
+  radarEngine.syncDeconflictionLayers();
+  renderElectronicFlightStrips();
+}
+
+export function renderElectronicFlightStrips(): void {
+  const container = document.getElementById('efs-strips-container');
+  if (!container) return;
+
+  container.innerHTML = FLIGHTS_DATA.map((flight) => {
+    const isHighRisk = flight.riskScore > 20;
+    const borderClass = isHighRisk ? 'border-amber-500/50 bg-amber-950/20' : 'border-cyan-500/30 bg-obsidian-850';
+    return `
+      <div class="p-3 rounded-lg border ${borderClass} flex flex-col md:flex-row items-start md:items-center justify-between gap-3 font-mono text-xs transition-all">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded bg-cyan-950/80 border border-cyan-500/40 flex items-center justify-center font-bold text-cyan-300">
+            ${flight.callsign.substring(0, 3)}
+          </div>
+          <div>
+            <div class="flex items-center space-x-2">
+              <span class="text-white font-bold text-sm">${flight.callsign}</span>
+              <span class="text-cyan-400 text-[10px]">${flight.transponder || flight.icao24}</span>
+              <span class="text-slate-400 text-[10px]">${flight.aircraft}</span>
+            </div>
+            <div class="text-slate-400 text-[11px] mt-0.5">
+              ${flight.origin} (${flight.originCity}) &rarr; ${flight.destination} (${flight.destinationCity})
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center space-x-4">
+          <div class="text-center">
+            <span class="text-slate-500 text-[9px] block">FLIGHT LEVEL</span>
+            <span class="text-cyan-300 font-bold">${flight.flightLevel}</span>
+          </div>
+          <div class="text-center">
+            <span class="text-slate-500 text-[9px] block">SPEED / MACH</span>
+            <span class="text-slate-200 font-bold">${flight.speed}kt / M${flight.mach}</span>
+          </div>
+          <div class="text-center">
+            <span class="text-slate-500 text-[9px] block">HEADING</span>
+            <span class="text-slate-200 font-bold">${Math.round(flight.heading)}°</span>
+          </div>
+          <div class="text-center">
+            <span class="text-slate-500 text-[9px] block">CRI RISK</span>
+            <span class="${isHighRisk ? 'text-amber-400 font-bold' : 'text-emerald-400'}">${Number(flight.riskScore).toFixed(1)}%</span>
+          </div>
+        </div>
+
+        <div class="flex items-center space-x-1.5 flex-wrap">
+          <button onclick="window.executeStripVectorClearance('${flight.callsign}', 'CLIMB_FL390')" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-cyan-300 text-[10px] font-bold border border-cyan-500/20">
+            &uarr; FL390
+          </button>
+          <button onclick="window.executeStripVectorClearance('${flight.callsign}', 'DESCEND_FL340')" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-cyan-300 text-[10px] font-bold border border-cyan-500/20">
+            &darr; FL340
+          </button>
+          <button onclick="window.executeStripVectorClearance('${flight.callsign}', 'HDG_RIGHT_15')" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-cyan-300 text-[10px] font-bold border border-cyan-500/20">
+            &nearr; HDG+15°
+          </button>
+          <button onclick="window.executeStripVectorClearance('${flight.callsign}', 'DECONFLICT')" class="px-2.5 py-1 rounded bg-emerald-950 hover:bg-emerald-900 text-emerald-300 text-[10px] font-bold border border-emerald-600">
+            ⚡ DECONFLICT
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
 }
 
 // ==================== MULTI-CURRENCY & ENTERPRISE BILLING ====================
@@ -1658,6 +1774,10 @@ window.reinitRadar = reinitRadar;
 window.viewLicensingPlans = viewLicensingPlans;
 window.requestEnterpriseAccess = requestEnterpriseAccess;
 window.requestEnterprisePlan = requestEnterprisePlan;
+window.executeAiDeconflictionManeuver = executeAiDeconflictionManeuver;
+window.openElectronicFlightStripsModal = openElectronicFlightStripsModal;
+window.closeElectronicFlightStripsModal = closeElectronicFlightStripsModal;
+window.executeStripVectorClearance = executeStripVectorClearance;
 
 // Boot up sequence
 function initApp(): void {
