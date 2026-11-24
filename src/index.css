@@ -31,24 +31,78 @@ body {
   background: #22d3ee;
 }
 
+/* ==================== YEAR 3038 CYBER-AEROSPACE VISUALS ==================== */
+
+/* Holographic Cyber Scanline Animation */
+@keyframes cyberScanline {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(1000%); }
+}
+
+.animate-scanline {
+  position: relative;
+  overflow: hidden;
+}
+.animate-scanline::after {
+  content: " ";
+  display: block;
+  position: absolute;
+  top: 0; left: 0; bottom: 0; right: 0;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 240, 255, 0.08) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+  z-index: 20;
+  background-size: 100% 3px, 6px 100%;
+  pointer-events: none;
+}
+
+/* Glowing Cyber Border Pulse */
+@keyframes cyberGlow {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(0, 229, 255, 0.25), inset 0 0 15px rgba(0, 229, 255, 0.1);
+    border-color: rgba(0, 229, 255, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(0, 229, 255, 0.5), inset 0 0 25px rgba(0, 229, 255, 0.2);
+    border-color: rgba(0, 229, 255, 0.85);
+  }
+}
+
+.shadow-cyber-glow {
+  animation: cyberGlow 3.5s ease-in-out infinite;
+}
+
+/* 3D Isometric Card Floating & Perspective */
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+.card-3d-future {
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s ease;
+  transform-style: preserve-3d;
+}
+
+.card-3d-future:hover {
+  transform: translateY(-6px) rotateX(4deg) scale(1.015);
+  box-shadow: 0 20px 40px -10px rgba(0, 229, 255, 0.22), 0 0 25px rgba(0, 229, 255, 0.3);
+}
+
 /* Terminal & Tactical Scanline Grid */
 .bg-tactical-grid {
   background-size: 32px 32px;
   background-image: 
-    linear-gradient(to right, rgba(34, 211, 238, 0.03) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(34, 211, 238, 0.03) 1px, transparent 1px);
+    linear-gradient(to right, rgba(34, 211, 238, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(34, 211, 238, 0.04) 1px, transparent 1px);
 }
 
 .bg-dot-matrix {
-  background-image: radial-gradient(rgba(34, 211, 238, 0.12) 1px, transparent 0);
+  background-image: radial-gradient(rgba(34, 211, 238, 0.15) 1px, transparent 0);
   background-size: 20px 20px;
 }
 
 .radar-sweep-cone {
   background: conic-gradient(
     from 0deg,
-    rgba(34, 211, 238, 0.35) 0deg,
-    rgba(34, 211, 238, 0.12) 45deg,
+    rgba(34, 211, 238, 0.45) 0deg,
+    rgba(34, 211, 238, 0.18) 45deg,
     rgba(34, 211, 238, 0) 90deg,
     rgba(34, 211, 238, 0) 360deg
   );

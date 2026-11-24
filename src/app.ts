@@ -300,6 +300,32 @@ export async function submitPartnershipEnquiry(): Promise<void> {
 
   if (refIdEl) refIdEl.textContent = enquiryRef;
 
+  const waContainer = document.getElementById('enquiry-wa-actions');
+  if (waContainer) {
+    const waText = encodeURIComponent(
+      `*SKYGRID INTELLIGENCE — ENTERPRISE ENQUIRY*\n` +
+      `• Ref: ${enquiryRef}\n` +
+      `• Name: ${fullName}\n` +
+      `• Organization: ${organization}\n` +
+      `• Email: ${email}\n` +
+      `• Strategic Interest: ${interestTier}\n` +
+      `• Details: ${message || 'Requesting sovereign airspace evaluation.'}`
+    );
+    const waUrl = `https://wa.me/2348133535112?text=${waText}`;
+    const mailUrl = `mailto:davidakanno56@gmail.com?subject=${encodeURIComponent(`SkyGrid Enterprise Enquiry [${enquiryRef}]`)}&body=${encodeURIComponent(`Hello David,\n\nI submitted an enquiry for SkyGrid Intelligence:\n• Ref: ${enquiryRef}\n• Name: ${fullName}\n• Organization: ${organization}\n• Email: ${email}\n• Strategic Interest: ${interestTier}\n• Details: ${message}`)}`;
+
+    waContainer.innerHTML = `
+      <div class="mt-4 pt-3 border-t border-emerald-300/60 flex flex-wrap items-center gap-3">
+        <a href="${waUrl}" target="_blank" rel="noopener noreferrer" class="px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg transition-all">
+          <span>💬 Open in WhatsApp &amp; Message Founder Directly</span>
+        </a>
+        <a href="${mailUrl}" class="px-4 py-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-cyan-300 font-bold text-xs border border-cyan-500/40 flex items-center gap-2 transition-all">
+          <span>✉️ Send Email to davidakanno56@gmail.com</span>
+        </a>
+      </div>
+    `;
+  }
+
   if (banner) {
     banner.classList.remove('hidden');
     banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -360,9 +386,9 @@ const AIRPORT_HUBS: AirportHub[] = [
 // Global Airspace Camera Orientations (Full Earth Globe & Regional Air Corridors)
 const CORRIDOR_CAMERA_TARGETS: Record<string, CorridorCameraPreset> = {
   'global-earth': {
-    center: [20.0, 22.0],
-    zoom: 1.8,
-    pitch: 28,
+    center: [55.3657, 25.2532],
+    zoom: 2.8,
+    pitch: 32,
     bearing: 0,
     duration: 2500
   },
@@ -374,50 +400,50 @@ const CORRIDOR_CAMERA_TARGETS: Record<string, CorridorCameraPreset> = {
     duration: 2200
   },
   'europe-atlantic': {
-    center: [-2.0, 51.0],
-    zoom: 4.4,
+    center: [30.0, 40.0],
+    zoom: 4.2,
     pitch: 40,
     bearing: -10,
     duration: 2400
   },
   'trans-america': {
-    center: [-92.0, 39.0],
-    zoom: 3.9,
+    center: [-80.0, 32.0],
+    zoom: 4.2,
     pitch: 38,
     bearing: 5,
     duration: 2400
   },
   'asia-pacific': {
-    center: [115.0, 16.0],
-    zoom: 3.9,
+    center: [80.0, 20.0],
+    zoom: 4.2,
     pitch: 40,
     bearing: -15,
     duration: 2400
   },
   'doh-dxb': {
-    center: [53.5000, 25.3200],
-    zoom: 7.5,
+    center: [54.2000, 25.3200],
+    zoom: 8.2,
     pitch: 45,
     bearing: -15,
     duration: 2200
   },
   'sin-dxb': {
-    center: [78.0000, 16.0000],
-    zoom: 4.4,
-    pitch: 40,
-    bearing: -30,
-    duration: 2800
+    center: [56.2000, 25.1000],
+    zoom: 8.4,
+    pitch: 44,
+    bearing: -20,
+    duration: 2200
   },
   'lhr-dxb': {
-    center: [35.0000, 36.0000],
-    zoom: 4.2,
+    center: [54.8000, 25.3000],
+    zoom: 8.4,
     pitch: 45,
-    bearing: -10,
-    duration: 2800
+    bearing: -15,
+    duration: 2200
   },
   'dwc-expansion': {
     center: [55.1614, 24.8967],
-    zoom: 11.5,
+    zoom: 11.2,
     pitch: 50,
     bearing: 15,
     duration: 2200

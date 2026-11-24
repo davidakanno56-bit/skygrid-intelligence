@@ -418,7 +418,7 @@ export function buildHazardZonesGeoJSON(): GeoJSONFeatureCollection {
         type: 'Feature',
         properties: {
           id: 'HZ-DXB-SHEAR-01',
-          name: 'SIMULATED WINDSHEAR CELL (FL280-FL340)',
+          name: 'CONVECTIVE WINDSHEAR CELL (FL280-FL340)',
           severity: 'ELEVATED',
           fillColor: 'rgba(245, 158, 11, 0.16)',
           lineColor: '#f59e0b'
@@ -441,7 +441,7 @@ export function buildHazardZonesGeoJSON(): GeoJSONFeatureCollection {
         type: 'Feature',
         properties: {
           id: 'HZ-GULF-TURB-02',
-          name: 'SIMULATED WAKE / SHEAR ADVISORY',
+          name: 'TERMINAL WAKE VORTEX / SHEAR ADVISORY',
           severity: 'WATCH',
           fillColor: 'rgba(239, 68, 68, 0.12)',
           lineColor: '#ef4444'
@@ -473,7 +473,7 @@ export function buildAirspaceOverlayGeoJSON(): GeoJSONFeatureCollection {
       {
         type: 'Feature',
         properties: {
-          name: 'OMDB / OMDW DUBAI TMA (SIMULATED OVERLAY)'
+          name: 'OMDB / OMDW DUBAI TERMINAL CONTROL AREA (TMA)'
         },
         geometry: {
           type: 'Polygon',

@@ -138,7 +138,7 @@ export class TacticalRadarEngine {
 
   private updateTrackCount(): void {
     const el = document.getElementById('radar-track-count');
-    if (el) el.textContent = `${this.deps.getFlights().length} SIM TRACKS`;
+    if (el) el.textContent = `${this.deps.getFlights().length} ACTIVE TRACKS`;
   }
 
   public isReady(): boolean {
